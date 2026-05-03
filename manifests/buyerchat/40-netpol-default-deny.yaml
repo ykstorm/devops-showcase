@@ -1,0 +1,19 @@
+# Default-deny: every pod in `buyerchat` ns refuses both ingress and
+# egress unless an explicit allow policy lets a flow through. Calico
+# enforces both directions; kindnet (which we explicitly disabled)
+# would only honor the ingress half.
+#
+# After this policy applies, kubectl port-forward still works because
+# port-forward goes through the apiserver/kubelet relay, not pod-to-pod.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: buyerchat
+  labels:
+    app.kubernetes.io/part-of: devops-showcase
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

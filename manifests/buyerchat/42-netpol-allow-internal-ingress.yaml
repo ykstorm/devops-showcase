@@ -1,0 +1,26 @@
+# Allow ingress to buyerchat:3000 from any pod in the same namespace.
+# Day 2: this is mainly future-proofing — port-forward doesn't need
+# this rule (it relays via the apiserver, not pod-to-pod). Day 3 the
+# ingress-nginx controller installs in its own namespace; we'll add a
+# sibling rule (allow-ingress-from-ingress-nginx) keyed off that ns
+# label rather than relax this one to allow-from-anywhere.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-ingress
+  namespace: buyerchat
+  labels:
+    app.kubernetes.io/part-of: devops-showcase
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: buyerchat
+      app.kubernetes.io/component: web
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000

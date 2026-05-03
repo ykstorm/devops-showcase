@@ -1,0 +1,29 @@
+# Without this allow rule the buyerchat pod cannot resolve any
+# hostname (kube-dns at kube-system/coredns is the default cluster
+# DNS). Even degraded-mode startup typically tries DNS lookups for
+# upstreams, so denying DNS produces noisy error logs even though the
+# acceptance criterion (any healthcheck response) would still pass.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: buyerchat
+  labels:
+    app.kubernetes.io/part-of: devops-showcase
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
