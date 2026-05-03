@@ -522,23 +522,37 @@ screenshots).
    mermaid diagrams.
 9. `docs/tradeoffs.md` — every "why X not Y" decision from
    `findings.md` Q-1 through Q-T condensed for a recruiter audience.
+   Must include the **SHA-pinning policy** as a one-line entry next
+   to the Calico-vs-kindnet entry: "image.tag pinned to a SHA digest,
+   never `:latest` — reproducible deploys, immutable referent, no
+   surprise rollouts when CI rebuilds."
 10. `docs/runbooks/argocd-out-of-sync.md`,
     `docs/runbooks/rollout-stuck.md`,
     `docs/runbooks/pod-crashloop.md`,
     `docs/runbooks/cert-not-issued.md` — four one-pagers.
 11. `docs/screenshots/` — 7 PNGs captured from a live `make up`.
-12. `docs/diagnostics/p3-week1/HANDOFF.md` — sprint-close artifact
+12. **Cross-repo cleanup ticket (one-line entry, tracked here, not
+    actioned in this repo):** the buyerchat-p1 repo's `docker.yml`
+    workflow does NOT publish `:latest` even though the buyerchat
+    README + `buyerchat-p1/docs/DOCKER.md` instruct readers to
+    `docker pull ghcr.io/ykstorm/buyerchat:latest`. Default fix
+    (option a): patch `buyerchat-p1/.github/workflows/docker.yml` to
+    add `:latest` on every push to `main`. Fallback (option b):
+    update the buyerchat-p1 README + DOCKER.md to remove the
+    `:latest` instruction. Owned by a separate buyerchat-p1 sprint;
+    P3 Day 7 just records the ticket existence + recommended option.
+13. `docs/diagnostics/p3-week1/HANDOFF.md` — sprint-close artifact
     mirroring the structure of
     `buyerchat-p1/docs/diagnostics/p1-week1/HANDOFF.md` (verify-
     state baseline table, anti-touch list, queued items).
-13. `docs/diagnostics/p3-week1/final-verify.txt` — captured stdout
+14. `docs/diagnostics/p3-week1/final-verify.txt` — captured stdout
     of `make verify` from a clean run.
-14. `docs/retros/p3-week1.md` — per AGENT_DISCIPLINE §16. Two
+15. `docs/retros/p3-week1.md` — per AGENT_DISCIPLINE §16. Two
     paragraphs: what worked / what surprised, what to do
     differently.
-15. README.md — final architecture diagram + 5-step quickstart with
+16. README.md — final architecture diagram + 5-step quickstart with
     screenshots inline.
-16. Daily progress.md entry (final).
+17. Daily progress.md entry (final).
 
 **Acceptance criteria:**
 
