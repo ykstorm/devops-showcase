@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buyerchat
+  namespace: buyerchat
+  labels:
+    app.kubernetes.io/name: buyerchat
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: devops-showcase
+spec:
+  replicas: 1  # Day 4 bumps to 2 with Argo Rollouts canary
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buyerchat
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buyerchat
+        app.kubernetes.io/component: web
+        app.kubernetes.io/part-of: devops-showcase
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: buyerchat
+          image: ghcr.io/ykstorm/buyerchat:sha-8560cb3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: buyerchat-env
+          # Restricted-PSS-compliant container security context.
+          # If the image's Dockerfile pins USER 0, runAsNonRoot=true
+          # (inherited from pod-level) will block startup; in that
+          # case we either rebuild the image with a non-root USER or
+          # relax this namespace to the `baseline` PSS profile.
+          # Day-2 risk row in task_plan.md covers the fallback.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            # Restricted PSS + readOnlyRootFilesystem requires every
+            # writable path to be an explicit volume. These are the
+            # paths a Next.js standalone server is known to write to.
+            - name: tmp
+              mountPath: /tmp
+            - name: nextjs-cache
+              mountPath: /app/.next/cache
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # /api/healthcheck is the route published by the buyerchat
+          # image (see buyerchat-p1/.github/workflows/docker.yml
+          # HEALTHCHECK directive). In degraded mode it returns 503
+          # because DATABASE_URL is stubbed — that's an expected and
+          # accepted outcome for this sprint.
+          startupProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: nextjs-cache
+          emptyDir: {}
