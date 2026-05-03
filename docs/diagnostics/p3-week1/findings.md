@@ -96,30 +96,32 @@ A 404 with the anonymous bearer is consistent with **either**:
 2. The package does not exist, or the `:latest` tag does not exist on
    it.
 
-Cross-reference: `buyerchat-p1/.github/workflows/docker.yml` (read by
-this investigation via `buyerchat-p1/docs/diagnostics/p1-week1/HANDOFF.md`
-lines 96-101) confirms the workflow pushes `latest`, `sha-<short>`, and
-`<semver>` tags on every push to `main` and on tag events. P1-R2 Day 6
-shipped on commit `9a02c24` and Day 7 closed on `ec1e10c` (HANDOFF.md
-lines 51 and 423). So a `:latest` tag almost certainly exists; the 404
-under anonymous credentials therefore points at **case 1: the package
-is private**.
+**[CORRECTION 2026-05-04, Day-1-review re-probe]:** Day 2 re-ran the
+probe across multiple candidate tags. Results (anonymous bearer, all
+others held constant):
 
-**Day 2-3 implication.** If the package is private, the kind cluster's
-`buyerchat` Deployment/Rollout will need an `imagePullSecret`
-referencing a Docker config JSON containing a GHCR PAT (read:packages
-scope). The `kubectl create secret docker-registry ghcr-pull ...`
-recipe is well-known. The PAT itself does **not** go in the repo;
-only the Sealed Secret encrypted form does. Day 3 has a sealed-secrets
-controller install for exactly this.
+| Tag                    | HTTP |
+|------------------------|------|
+| `:latest`              | 404  |
+| `:main`                | **200** |
+| `:sha-8560cb3`         | **200** |
+| `:sha-ec1e10c`         | 404 (Day-7 docs commit; no docker push) |
+| `:sha-9a02c24`         | 404 (Day-6 commit; docker.yml workflow likely landed *after* this SHA) |
 
-**[NEEDS DECISION → resolved at 90% confidence]:** Treat the package
-as private. Day 4 wires `imagePullSecrets: [name: ghcr-pull]` into the
-buyerchat Helm chart `values.yaml`, with the actual secret created
-from a Day-3 Sealed Secret. Operator must supply a GHCR PAT
-(read:packages, no expiry shorter than 90d) at Day 3 kickoff. If it
-turns out the package is public, the imagePullSecrets reference is
-harmless and we drop the Sealed Secret in a follow-up.
+That settles it: **the package is PUBLIC** (case 2 above —
+`:latest` simply doesn't exist as a tag in this repository, while
+`:main` and SHA-tagged images do). The Day-1 inference was wrong.
+
+**Implications:**
+
+- **No GHCR PAT required.** Day 3's sealed-secrets controller does
+  not need to handle a `ghcr-pull` Secret. The `imagePullSecrets`
+  array in the buyerchat Deployment / Helm chart stays empty.
+- **Image tag locked to `:sha-8560cb3`** (immutable, reproducible)
+  rather than `:main` (floats with main-branch HEAD) or `:latest`
+  (does not exist). Day 4's Helm chart bumps the tag to whatever
+  GHA pushes next; for Day 2-3 raw-YAML deploys, `:sha-8560cb3` is
+  what ships.
 
 ---
 
@@ -132,23 +134,40 @@ Each entry below is tagged **[RESOLVED]** (≥80% confidence, proceeding)
 or **[NEEDS DECISION]** (operator input required before Day 2 can
 start).
 
-### Q-1. Cluster topology — 1 control + 2 workers, or 1+1?
+### Q-1. Cluster topology — 1 control + 2 workers, or 1+1, or single-node?
 
-**[RESOLVED, 90%]** — 1 control + 2 workers.
+**[OPERATOR-OVERRIDE 2026-05-04, Day-1 review]:** **Single-node
+(control-plane only).**
 
-- Pro: lets us demonstrate `topologySpreadConstraints` and pod
-  anti-affinity meaningfully (need ≥2 worker nodes for the assertion
-  to even compile).
-- Pro: kube-prometheus-stack default scrape config picks up multiple
-  kubelets — richer Grafana node-exporter dashboards.
-- Con: ~+1 GB RAM headroom required vs single-worker. Acceptable on a
-  modern laptop with 16+ GB.
-- The original v0.5 prompt (`buyerchat-p1/docs/diagnostics/p3-prompt.md:87`)
-  also chose 3-node for the same reasons.
+- Operator picked single-node for laptop-RAM friendliness.
+- Pod-anti-affinity / topologySpreadConstraints demos lose ground
+  (need ≥2 nodes). Acknowledged; deferred to v1.0.
+- kube-prometheus-stack still captures node-exporter metrics from the
+  one node — Grafana panels populate, just less interestingly.
+- Cluster spec on a single node + Calico CNI is the minimum viable
+  surface for the policy + GitOps + observability demos this sprint
+  centers on.
 
 ### Q-2. Container runtime under kind?
 
 **[RESOLVED, 100%]** — containerd (kind default; not a real choice).
+
+### Q-2b. CNI — kindnet (default) or Calico?
+
+**[OPERATOR-OVERRIDE 2026-05-04, Day-1 review]:** **Calico.**
+
+- kindnet implements only partial NetworkPolicy support — fine for
+  pod-to-pod connectivity, not fine for the deny-all + explicit-allow
+  demo we ship Day 2 / Day 7.
+- Calico enforces both `Ingress` and `Egress` rules in full and is the
+  industry-default-on-bare-metal CNI.
+- Bring-up: kind cluster declares `disableDefaultCNI: true`, then
+  install via the upstream tigera-operator manifest pinned to a
+  specific Calico version.
+- Tradeoff cost: ~30s extra bring-up time + 2 extra controller pods
+  (`tigera-operator`, `calico-kube-controllers`) + ~150 MB extra image
+  pull on first cluster bring-up.
+- Documented in `docs/tradeoffs.md` Day 7.
 
 ### Q-3. Ingress class — ingress-nginx or traefik?
 
@@ -267,14 +286,15 @@ namespace, with explicit allow rules.
 
 ### Q-12. Buyerchat secrets — what does the pod actually need to start?
 
-**[NEEDS DECISION → resolved at 80% confidence, flagged for Day 4
-operator review]** — Run in **degraded mode**: ship placeholder
-SealedSecrets with non-functional values (`DATABASE_URL=postgres://demo:demo@example.invalid/demo`,
-`OPENAI_API_KEY=sk-demo-not-real`, etc.). The pod boots, the Next.js
-server starts, the `/api/healthcheck` returns 503 because the DB
-ping fails — and that 503 rate is itself the visible signal on the
-Grafana dashboard. The dashboards demonstrate they correctly catch a
-broken downstream.
+**[OPERATOR-LOCKED 2026-05-04]:** **Degraded mode, full stop.** The
+showcase is the K8s platform, not a live homesty.ai clone. Pod runs
+with stub env (`DATABASE_URL=postgres://demo:demo@example.invalid/demo`,
+`OPENAI_API_KEY=sk-demo-not-real`, etc.). Acceptance criterion only
+requires `/api/healthcheck` returns *some* HTTP response (200 or
+503 — either counts). Recruiters demo the platform; the pod-level
+behavior of buyerchat is incidental.
+
+Original 80%-confidence reasoning, kept for context:
 
 - Pro: $0 cost (no real Neon project), no real-secret risk in the
   repo, the demo *demonstrates* the observability stack catching a

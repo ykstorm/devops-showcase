@@ -50,20 +50,40 @@ either sees green dashboards or doesn't.
 ### 2.1 Cluster
 
 - **kind v0.23+** as the local Kubernetes control plane.
-- Topology: **1 control-plane + 2 workers** (3-node, single Docker
-  network). Lets us demonstrate node selectors and pod anti-affinity
-  meaningfully without burning RAM.
-- Kubernetes version pinned to **v1.30.x** (matches kind 0.23 default
-  node image; well-supported by every chart we install).
+- Topology (Day-1-review-locked): **single-node** (control-plane only).
+  RAM-conservative for laptop bring-up; sufficient for the policy +
+  GitOps + observability surfaces this sprint actually demonstrates.
+  Pod-anti-affinity / topologySpreadConstraints demos are deferred to
+  v1.0 (would require multi-node).
+- **CNI: Calico** (Day-1-review-locked). kindnet, the default kind CNI,
+  has only partial NetworkPolicy enforcement — fine for vanilla pod
+  networking, not fine for the Day-7 NetworkPolicy demo. Calico
+  enforces `Ingress` + `Egress` rules in full and is the
+  industry-default-on-bare-metal CNI. The kind cluster declares
+  `disableDefaultCNI: true`; Calico is installed via the
+  tigera-operator manifest immediately after cluster bring-up.
+- Kubernetes version: kind v0.23 default node image (currently
+  v1.30.x); we don't pin further.
 - Cluster name: `devops-showcase`.
 
 ### 2.2 Workload
 
-- **`ghcr.io/ykstorm/buyerchat:latest`** — the Next.js image already
-  shipped from P1-R2 Day 6 GHCR push workflow. We deploy this as the
+- **`ghcr.io/ykstorm/buyerchat:sha-8560cb3`** — the Next.js image
+  already shipped from the P1-R2 GHA workflow. We deploy this as the
   example workload. We do **not** rebuild it, do **not** vendor its
   source, and do **not** ship secrets that would let it actually talk
   to its prod database.
+- **Image-tag resolution (Day-1-review-locked):** `:latest` returns
+  HTTP 404 against the GHCR manifest endpoint — the workflow never
+  publishes a `:latest` tag for this repo. `:main` and `:sha-8560cb3`
+  both return HTTP 200 with anonymous bearer (the package is
+  **public** — no GHCR PAT required, no `imagePullSecret` needed).
+  We pin to the immutable `:sha-8560cb3` tag rather than the floating
+  `:main` for recruiter reproducibility.
+- **Degraded-mode boot (operator-locked):** the showcase is the K8s
+  platform, not a live homesty.ai clone. Buyerchat runs with stub
+  env vars; `/api/healthcheck` returns *some* HTTP response (200 or
+  503; either counts) — full app functionality is not a sprint goal.
 - Helm chart at `helm/buyerchat/` — owned by this repo. Renders an
   Argo Rollouts `Rollout` CRD (canary, 4-step:
   25% → 50% → 75% → 100%, no metric analysis in v0.5), a `Service`,
@@ -210,19 +230,20 @@ If any of these fail at end of Day 7, the sprint is `[PARTIAL]` not
 
 ## 5. Daily commit cadence (locked)
 
-| Day | Theme | Branch | Commit prefix |
-|---|---|---|---|
-| 1 (today) | Investigation + scope lock + skeleton | `p3-day1-scope` | `docs(p3): day 1 — scope + investigation` |
-| 2 | kind cluster + bootstrap scripts | `p3-day2-cluster` | `feat(p3): day 2 — kind cluster + bootstrap` |
-| 3 | ingress-nginx + cert-manager + sealed-secrets | `p3-day3-foundation` | `feat(p3): day 3 — ingress + TLS + secrets` |
-| 4 | helm/buyerchat chart + Argo Rollouts | `p3-day4-workload` | `feat(p3): day 4 — buyerchat helm + rollouts` |
-| 5 | Prometheus + Loki + Tempo + dashboards | `p3-day5-observability` | `feat(p3): day 5 — observability stack` |
-| 6 | ArgoCD + app-of-apps + per-app manifests | `p3-day6-gitops` | `feat(p3): day 6 — argocd app-of-apps` |
-| 7 | Network policy + PSS + CI + retro + screenshots | `p3-day7-policy-ci-retro` | `feat(p3): day 7 — policies + CI + retro` |
+| Day | Theme |
+|---|---|
+| 1 | Investigation + scope lock + skeleton |
+| 2 | kind cluster (single-node, Calico CNI) + raw K8s manifests + scripts |
+| 3 | ingress-nginx + cert-manager + sealed-secrets + first Helm chart |
+| 4 | helm/buyerchat chart + Argo Rollouts |
+| 5 | Prometheus + Loki + Tempo + dashboards |
+| 6 | ArgoCD + app-of-apps + per-app manifests |
+| 7 | Network policy refinements + PSS + CI + retro + screenshots |
 
-Each day ends with a commit on the day's branch and a `git merge --no-ff`
-(or PR, if the operator prefers GitHub UI) into `main`. `main` is the
-GitOps source-of-truth for ArgoCD.
+**Operator-locked Day-1 review:** commits land **straight on `main`**.
+Single-developer infra showcase doesn't need branch-per-day audit-trail
+overhead. Each day commits one or more atomic logical steps directly to
+`main`. ArgoCD (Day 6+) treats `main` as the GitOps source-of-truth.
 
 ---
 

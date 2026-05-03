@@ -84,72 +84,106 @@ day's deliverables exist to surface.
 
 ---
 
-## Day 2 — Cluster bring-up (kind + bootstrap scripts)
+## Day 2 — Cluster bring-up + restricted-PSS namespace + raw buyerchat manifests + NetworkPolicies (LOCKED 2026-05-04)
 
-**Goal:** A reproducible, declarative kind cluster with three
-namespaces ready for Day-3 controllers. `kind/cluster.yaml` is the
-declaration; `scripts/bootstrap.sh` is the one-command bring-up.
+**Goal:** A reproducible, declarative kind cluster (single-node, Calico
+CNI) with the `buyerchat` namespace running the
+`ghcr.io/ykstorm/buyerchat:sha-8560cb3` image under `restricted` PSS,
+fronted by a default-deny + explicit-allow NetworkPolicy posture, all
+applied via raw YAML manifests (no Helm yet — Day 3). Smoke test via
+`kubectl port-forward` (no Ingress yet — Day 3).
 
 **Pre-conditions (operator-resolved before Day 2 starts):**
 
 - Docker Desktop running (`docker info` returns clean).
-- `helm` v3.15+ on PATH.
+- `helm` v3.15+ on PATH (not used Day 2; needed Day 3 onward).
 - `kind` v0.23+ on PATH.
-- (`docker pull ghcr.io/ykstorm/buyerchat:latest` confirmed; if 401,
-  PAT scope identified for Day 3.)
+- (GHCR package confirmed public; no PAT required.)
+
+**Constraints (locked):**
+
+- Restricted PSS profile via namespace labels:
+  `pod-security.kubernetes.io/enforce: restricted` (+ audit + warn).
+  Deployment securityContext satisfies it: no root, no privileged,
+  drop ALL capabilities, readOnlyRootFilesystem with emptyDir for
+  writable paths Next.js requires (`/tmp`, `/app/.next/cache`).
+- ImagePullPolicy: `IfNotPresent`. Pre-load the image into kind via
+  `kind load docker-image` to avoid registry hits during pod start.
+- NO real secrets committed. Stub env in plain `Secret` for Day 2;
+  Day 3 replaces it with a SealedSecret.
+- NO Helm Day 2 — raw YAMLs only.
+- NO Ingress controller Day 2. Smoke test via `kubectl port-forward`.
 
 **Deliverables:**
 
-1. `kind/cluster.yaml` — KIND v1alpha4 cluster config:
-   - `name: devops-showcase`
-   - 1 control-plane + 2 workers
-   - Node image pinned to `kindest/node:v1.30.x`
-   - `extraPortMappings` on the control plane for 80/443
-     (host → ingress-nginx; needed Day 3+)
-2. `scripts/bootstrap.sh` (bash + PowerShell-compatible via WSL or
-   git-bash; documented):
-   - `kind create cluster --config kind/cluster.yaml` (idempotent
-     check first)
-   - `kubectl config use-context kind-devops-showcase`
-   - Create namespaces: `app`, `argocd`, `monitoring`, `ingress-nginx`,
-     `cert-manager`, `sealed-secrets`, `argo-rollouts`
-   - `kubectl wait --for=condition=Ready node --all --timeout=120s`
-3. `scripts/teardown.sh` — `kind delete cluster --name devops-showcase`
-   (this is destructive — explicit confirm prompt unless `-y` flag).
-4. README.md — Day-2 quickstart section: clone → `bash
-   scripts/bootstrap.sh` → `kubectl get nodes` (expect 3).
-5. Daily progress.md entry prepended.
+1. `kind/cluster.yaml` — single-node Cluster CR;
+   `disableDefaultCNI: true`; podSubnet `192.168.0.0/16` aligned
+   with the Calico Installation CR.
+2. `kind/calico/installation.yaml` — Calico Installation + APIServer
+   CRs (operator-driven install).
+3. `kind/calico/README.md` — pinned tigera-operator manifest URL +
+   Calico version + why Calico over kindnet.
+4. `manifests/buyerchat/00-namespace.yaml` — `buyerchat` ns with PSS
+   labels.
+5. `manifests/buyerchat/10-secret-stub.yaml` — stub env (placeholder
+   values; Day 3 replaces with SealedSecret).
+6. `manifests/buyerchat/20-deployment.yaml` — restricted-compliant
+   Deployment, image pinned to `:sha-8560cb3`, `imagePullPolicy:
+   IfNotPresent`, emptyDir mounts for `/tmp` + `/app/.next/cache`.
+7. `manifests/buyerchat/30-service.yaml` — ClusterIP :3000.
+8. `manifests/buyerchat/40-netpol-default-deny.yaml` — deny-all
+   ingress + egress in `buyerchat` ns.
+9. `manifests/buyerchat/41-netpol-allow-dns-egress.yaml` — egress to
+   kube-dns:53 (UDP+TCP).
+10. `manifests/buyerchat/42-netpol-allow-internal-ingress.yaml` —
+    ingress allowed from same-namespace pods.
+11. `scripts/up.ps1` — PowerShell-native lifecycle: precheck → kind
+    create → Calico install → image preload → manifest apply →
+    Deployment Available wait → smoke-test recipe printed.
+12. `scripts/down.ps1` — `kind delete cluster --name devops-showcase`
+    (gated behind interactive confirm or `-Force` flag).
+13. Day-2 progress.md entry prepended.
 
-**Acceptance criteria:**
+**Acceptance criteria (operator-side after `scripts\up.ps1` runs cleanly):**
 
-- [ ] `bash scripts/bootstrap.sh` from a clean machine (kind cluster
-      did not pre-exist) brings up a 3-node cluster in ≤ 120s.
-- [ ] `kubectl get nodes` shows 3 nodes, all `Ready`.
-- [ ] `kubectl get ns` shows the 7 expected namespaces.
-- [ ] Re-running `bash scripts/bootstrap.sh` is a no-op (idempotent
-      pre-check on cluster existence).
-- [ ] `bash scripts/teardown.sh -y` returns the host to no-cluster
-      state (verified via `kind get clusters` → empty).
+1. `kind get clusters` lists `devops-showcase`.
+2. `kubectl get pods -A` shows `calico-*` pods Running, no `kindnet-*`.
+3. `kubectl get ns buyerchat -o jsonpath='{.metadata.labels}'`
+   includes `pod-security.kubernetes.io/enforce: restricted`.
+4. `kubectl get pods -n buyerchat` shows buyerchat pod Running.
+5. `kubectl get networkpolicies -n buyerchat` lists three policies:
+   `default-deny`, `allow-dns-egress`, `allow-internal-ingress`.
+6. `kubectl port-forward -n buyerchat svc/buyerchat 3000:3000` succeeds
+   and `curl http://localhost:3000/api/healthcheck` returns ANY HTTP
+   response (200 or 503).
+7. `scripts\down.ps1` cleanly tears down the cluster.
+8. `git status` is clean after the final Day-2 commit.
 
-**Daily commit message:**
+**Commit messages (one per logical step):**
 
-```
-feat(p3): day 2 — kind cluster + bootstrap + teardown scripts
-
-3-node kind cluster (1 control-plane + 2 workers) declared in
-kind/cluster.yaml; brought up by scripts/bootstrap.sh. Seven
-namespaces pre-created for Day 3-7 components. Idempotent bring-up;
-teardown gated behind -y confirm.
-```
+1. `chore(scope): Day-1 review notes locked` — the 4 doc edits.
+2. `feat(kind): single-node cluster config with Calico CNI` — kind/.
+3. `feat(k8s): buyerchat namespace + restricted PSS + raw manifests` — manifests/buyerchat/ except netpols.
+4. `feat(netpol): default-deny + DNS + internal ingress allow rules` — manifests/buyerchat/4{0,1,2}*.
+5. `chore(scripts): up/down lifecycle scripts` — scripts/.
+6. `docs(p3-day2): progress entry + acceptance criteria capture` — progress.md.
 
 **Risk / fallback:**
-- **Risk:** Docker Desktop won't start. → Operator-side issue; Day 2
-  blocks.
-- **Risk:** kind v0.23 image pull is slow on first run (~500MB node
-  image). → Acceptable; documented as one-time cost in README.
-- **Risk:** `extraPortMappings` collides with another Docker container
-  on host 80/443. → `bootstrap.sh` checks `netstat`/`ss` for
-  pre-binding; warns + suggests fallback ports `8080`/`8443`.
+- **Risk:** Buyerchat image runs as USER 0 in its Dockerfile →
+  `runAsNonRoot: true` blocks startup → CrashLoopBackOff.
+  → Mitigation: Day 2 sets `runAsUser: 1001` explicitly + `runAsGroup:
+  1001`. If the image still won't boot under restricted PSS, fall back
+  to `baseline` and document as acceptance-criterion-3 [PARTIAL].
+- **Risk:** Next.js standalone needs writable cache paths beyond
+  `/tmp` and `/app/.next/cache`. → emptyDir mounts cover the common
+  cases; if more are needed, add as discovered.
+- **Risk:** Calico tigera-operator install order — Installation CR
+  applied before operator Deployment is Ready → CR rejected.
+  → `up.ps1` waits for `tigera-operator` Deployment Available before
+  applying the Installation CR.
+- **Risk:** Operator's Docker Desktop / helm / kind not installed
+  (current state at Day-2 start). → `up.ps1` precheck surfaces
+  exactly what's missing and exits with actionable message.
 
 ---
 

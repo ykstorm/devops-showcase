@@ -1,5 +1,16 @@
 # P3 Week 1 — Progress Log (append-only, most-recent first)
 
+> **Day-1-review addendum (2026-05-04, locked at Day-2 kickoff):**
+> Operator-overrode three calls before Day 2 started — single-node
+> kind (not 1+2-worker), Calico CNI (not kindnet), commit straight to
+> `main` (not branch-per-day). Image-tag re-probe corrected the Day-1
+> "package is private" inference: package is **public**, `:latest`
+> simply doesn't exist as a tag, `:sha-8560cb3` is the locked-in
+> immutable tag for Day 2-3. Q-12 hardened to "degraded mode, full
+> stop — showcase is the K8s platform". All four review notes folded
+> into P3-SCOPE.md, findings.md, task_plan.md in the
+> `chore(scope): Day-1 review notes locked` commit.
+
 > Format: prepend the new day's entry at the top. Each entry includes
 > the day's commit SHA (filled at end of day), what landed, what
 > deferred, what surprised, verify state, and discipline-section
