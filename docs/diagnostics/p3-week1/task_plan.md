@@ -526,6 +526,8 @@ screenshots).
    to the Calico-vs-kindnet entry: "image.tag pinned to a SHA digest,
    never `:latest` — reproducible deploys, immutable referent, no
    surprise rollouts when CI rebuilds."
+   Add 'TCP-vs-HTTP startup probe under degraded-mode 503' as a
+   decision row alongside the SHA-pinning and Calico-vs-kindnet entries.
 10. `docs/runbooks/argocd-out-of-sync.md`,
     `docs/runbooks/rollout-stuck.md`,
     `docs/runbooks/pod-crashloop.md`,

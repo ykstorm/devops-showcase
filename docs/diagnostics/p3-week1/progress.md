@@ -117,6 +117,16 @@ commit) **passes** — verified via `git status` post-commit.
     rationale: degraded-mode `/api/healthcheck` returns 503; HTTP
     liveness would CrashLoop the pod on successful-but-503 responses.
     95% confidence.
+    - **RETRACTED 2026-05-03 (Day 2 verification):** the "HTTP startup
+      probe is safe" half of this rationale was wrong. Kubelet's HTTP
+      probe treats any non-2xx/3xx as failure regardless of probe type
+      — startup probe on `/api/healthcheck` CrashLoopBackOff'd the pod
+      on the documented degraded-mode 503. Confidence was misplaced.
+      Corrected by switching `startupProbe` to `tcpSocket` (parity with
+      liveness + readiness). See `manifests/buyerchat/20-deployment.yaml`
+      inline comment for full rationale. Lesson recorded in `tradeoffs.md`
+      (Day 7) as decision row "TCP-vs-HTTP startup probe under
+      degraded-mode 503 contract."
   - 6-commit sequence ordered to keep `git diff` per commit small and
     purposeful. The Day-1 baseline + Day-1-review-notes split was
     reconstructed via revert-commit-restore-commit because git was
