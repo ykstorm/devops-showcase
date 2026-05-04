@@ -76,9 +76,16 @@ spec:
           # HEALTHCHECK directive). In degraded mode it returns 503
           # because DATABASE_URL is stubbed — that's an expected and
           # accepted outcome for this sprint.
+          # Startup probe is TCP, not HTTP, by design.
+          # /api/healthcheck returns 503 in degraded mode (no DB connection in
+          # the showcase cluster — see docs/P3-SCOPE.md §2.2 + findings.md Q-12).
+          # Kubelet HTTP probes treat any non-2xx/3xx as failure regardless of
+          # probe type (startup/readiness/liveness), so HTTP probing /api/healthcheck
+          # would CrashLoopBackOff the pod on the very response the showcase is
+          # built around. TCP probe checks port availability only — Next.js binds
+          # :3000 within ~1s of boot, probe passes, liveness/readiness take over.
           startupProbe:
-            httpGet:
-              path: /api/healthcheck
+            tcpSocket:
               port: http
             failureThreshold: 30
             periodSeconds: 5
