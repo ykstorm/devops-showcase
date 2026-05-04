@@ -141,7 +141,73 @@ commit) **passes** — verified via `git status` post-commit.
 - Modified (Day-1-review-notes diff in commit 1): 4 files in `docs/`.
 - Deleted: 0.
 
-### Day-3 queue
+### Verification results — 2026-05-05 (post-crash recovery run)
+
+Day-2 acceptance verified after a mid-sprint laptop power-off forced a
+toolchain re-orient. Two corrective commits landed first (`df0253b`
+manifest fix, `b446718` doc retraction); then `scripts\up.ps1` brought
+the cluster forward idempotently and the smoke battery + healthcheck
+ran clean.
+
+**Toolchain (post-reboot):** docker `29.4.1`, kind `v0.31.0`,
+helm `v4.1.4`, kubectl context `kind-devops-showcase`. The kind container
+survived the reboot (Docker Desktop's container restart-policy preserved
+it); cluster age 127m at verification time.
+
+**`scripts\up.ps1` exit:** 0. All steps OK including
+`Workload - wait for buyerchat Deployment Available`. `kubectl apply`
+reported `deployment.apps/buyerchat unchanged` — the cluster's running
+spec already matched the tcpSocket-probe manifest (someone applied the
+working-tree manifest before the crash; commit just made the change
+durable in git).
+
+**Smoke battery (`kubectl get …`):**
+
+- `kind get clusters` → `devops-showcase` (criterion 1 PASS).
+- `kubectl get pods -A` — Calico pods Running, no kindnet, all
+  `calico-apiserver` / `calico-system` / `kube-system` /
+  `tigera-operator` pods 1/1 Running (criterion 2 PASS).
+- `kubectl get ns buyerchat -o jsonpath='{.metadata.labels}'` —
+  `pod-security.kubernetes.io/enforce: restricted` (+ `audit` + `warn`)
+  present (criterion 3 PASS).
+- `kubectl get pods -n buyerchat` — `buyerchat-65598c6bd5-nk7n8 1/1
+  Running 1 restart (2m36s stable)` on
+  `devops-showcase-control-plane` (criterion 4 PASS).
+- `kubectl get networkpolicies -n buyerchat` — three policies:
+  `default-deny`, `allow-dns-egress`, `allow-internal-ingress`
+  (criterion 5 PASS).
+
+**Healthcheck (port-forward + `Invoke-WebRequest`):** HTTP `503`,
+body `{"status":"degraded","reason":"db_unreachable"}` — matches the
+P3-SCOPE §2.2 + findings.md Q-12 contract exactly. Probe traffic on
+TCP :3000 passes; kubelet does not CrashLoop on the 503 because both
+liveness and (now) startup probes are tcpSocket. Criterion 6 PASS.
+
+**Criterion 7 (`scripts\down.ps1` clean teardown):** intentionally
+deferred. Cluster is left up for Day 3 (ingress-nginx + cert-manager
++ sealed-secrets build on the same cluster). Tear-down path will be
+exercised at end-of-Day-3 or as the Day-7 `make up` reproducibility
+test. Recorded as DEFERRED, not failed.
+
+**Net acceptance criteria status:** 6/7 PASS, 1/7 DEFERRED, 0/7 FAIL.
+
+### Discipline checklist applied (this verification run)
+
+- **§9 (gates):** N/A — YAML-only edits; manifest spec validated by
+  `kubectl apply` server-side and by the running pod actually booting.
+- **§10 (report-back):** SHAs (`df0253b`, `b446718`, this commit),
+  files changed (1 manifest + 2 docs across the two corrective
+  commits), deferred state captured (criterion 7).
+- **§13 (handoff):** This verification block appended in-place under
+  Day 2 — no new day entry created, per recovery prompt.
+- **§14 (verdict):** Final verdict block follows in the chat report.
+- **§15 (autonomous):** Audit-preserving RETRACT pattern applied (no
+  silent rewrite of the original §15 row; the wrong decision is still
+  visible above the corrective sub-block). Cluster-destructive
+  `down + up` path was NOT taken; idempotent re-apply path used
+  instead because up.ps1 is designed for it.
+
+
 
 1. **Operator (preconditions before Day 2 acceptance can be verified):**
    - Start Docker Desktop. Verify with `docker info`.
