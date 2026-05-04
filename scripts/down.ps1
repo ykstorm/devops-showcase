@@ -18,16 +18,24 @@ param(
   [switch]$Force
 )
 
-$ErrorActionPreference = 'Stop'
+# See up.ps1 header comment re: EAP and PS5.1 native-command semantics.
+$ErrorActionPreference = 'Continue'
 
 $ClusterName = 'devops-showcase'
 
 Write-Host ""
 Write-Host "==> Tear down kind cluster '$ClusterName'" -ForegroundColor Cyan
 
-$existing = (& kind get clusters 2>$null)
-if (-not ($existing -contains $ClusterName)) {
-  Write-Host "    [OK] cluster '$ClusterName' is not present — nothing to do" -ForegroundColor Green
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+$existing = @(& kind get clusters 2>&1 | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_".Trim() })
+$ErrorActionPreference = $prevEAP
+$clusterExists = $false
+foreach ($line in $existing) {
+  if ($line -eq $ClusterName) { $clusterExists = $true; break }
+}
+if (-not $clusterExists) {
+  Write-Host "    [OK] cluster '$ClusterName' is not present - nothing to do" -ForegroundColor Green
   exit 0
 }
 

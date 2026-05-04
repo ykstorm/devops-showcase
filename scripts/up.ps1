@@ -23,8 +23,30 @@
     Cluster name:     devops-showcase
 #>
 
-$ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $true
+# PS5.1 turns native-command stderr into ErrorRecord objects in the error
+# stream; `$ErrorActionPreference = 'Stop'` would then terminate the script
+# on benign progress messages from kind / kubectl / docker. We instead use
+# 'Continue' at script scope and rely on explicit $LASTEXITCODE checks
+# after every native call. PSNativeCommandUseErrorActionPreference (PS7+)
+# would handle this cleanly but is unavailable on Windows PowerShell 5.1.
+$ErrorActionPreference = 'Continue'
+
+function Invoke-NativeCapture {
+  # PS5.1-safe native-command capture. Temporarily toggles ErrorActionPreference
+  # to Continue so native stderr (which PS5.1 wraps in ErrorRecord objects)
+  # doesn't terminate the script. Returns stdout lines as a string array;
+  # the caller is responsible for inspecting $LASTEXITCODE.
+  param([scriptblock]$ScriptBlock)
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $out = & $ScriptBlock 2>&1
+    # Filter to stdout-shaped lines (drop ErrorRecord wrappers)
+    return @($out | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" })
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+}
 
 $ClusterName       = 'devops-showcase'
 $CalicoVersion     = 'v3.28.2'
@@ -55,19 +77,20 @@ function Assert-OnPath {
     Write-Host "       $InstallHint" -ForegroundColor Yellow
     exit 1
   }
-  Write-OK "$Tool → $($cmd.Source)"
+  Write-OK "$Tool -> $($cmd.Source)"
 }
 
 # ---------------------------------------------------------------------
 # Precheck
 # ---------------------------------------------------------------------
-Write-Step 'Precheck — required tools on PATH'
+Write-Step 'Precheck - required tools on PATH'
 Assert-OnPath 'docker'  'Install Docker Desktop: https://www.docker.com/products/docker-desktop/'
 Assert-OnPath 'kind'    'winget install Kubernetes.kind   (then re-open the shell to pick up PATH)'
 Assert-OnPath 'kubectl' 'winget install Kubernetes.kubectl'
 
-Write-Step 'Precheck — Docker daemon'
-$dockerInfo = & docker info --format '{{.ServerVersion}}' 2>$null
+Write-Step 'Precheck - Docker daemon'
+$dockerLines = Invoke-NativeCapture { docker info --format '{{.ServerVersion}}' }
+$dockerInfo = ($dockerLines | Select-Object -First 1)
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($dockerInfo)) {
   Write-Host "[FAIL] Docker daemon is not responding." -ForegroundColor Red
   Write-Host "       Open Docker Desktop, wait for the whale icon to settle, then re-run." -ForegroundColor Yellow
@@ -78,10 +101,14 @@ Write-OK "Docker engine v$dockerInfo"
 # ---------------------------------------------------------------------
 # Cluster bring-up (idempotent)
 # ---------------------------------------------------------------------
-Write-Step "Cluster — kind cluster '$ClusterName'"
-$existing = (& kind get clusters 2>$null)
-if ($existing -contains $ClusterName) {
-  Write-OK "Cluster '$ClusterName' already exists — skipping create"
+Write-Step "Cluster - kind cluster '$ClusterName'"
+$existing = Invoke-NativeCapture { kind get clusters }
+$clusterExists = $false
+foreach ($line in $existing) {
+  if ($line.Trim() -eq $ClusterName) { $clusterExists = $true; break }
+}
+if ($clusterExists) {
+  Write-OK "Cluster '$ClusterName' already exists - skipping create"
 } else {
   & kind create cluster --config $ClusterConfig
   if ($LASTEXITCODE -ne 0) { throw "kind create cluster failed (exit $LASTEXITCODE)" }
@@ -94,29 +121,31 @@ Write-OK "kubectl context = kind-$ClusterName"
 # ---------------------------------------------------------------------
 # Calico CNI
 # ---------------------------------------------------------------------
-Write-Step "Calico — tigera-operator $CalicoVersion"
+Write-Step "Calico - tigera-operator $CalicoVersion"
 # `kubectl create` on the operator manifest is intentional: server-side
 # `apply` with a 200K manifest can hit the annotation-size limit; create
 # is the upstream-recommended pattern. Re-running on an existing install
 # returns AlreadyExists, which we swallow.
-& kubectl create -f $TigeraOperatorUrl 2>&1 | ForEach-Object {
-  if ($_ -match 'AlreadyExists') { Write-OK "operator resources already present" }
-  elseif ($_ -match '^(namespace|customresourcedefinition|serviceaccount|clusterrole|clusterrolebinding|role|rolebinding|configmap|deployment|service|podsecuritypolicy)') {
-    Write-Host "    $_"
-  } else { Write-Host "    $_" }
+$opLines = Invoke-NativeCapture { kubectl create -f $TigeraOperatorUrl }
+# kubectl create exits non-zero on AlreadyExists; that's OK on idempotent re-run.
+foreach ($line in $opLines) {
+  if ($line -match 'AlreadyExists') { Write-OK "operator resources already present" }
+  elseif ($line -match '^(namespace|customresourcedefinition|serviceaccount|clusterrole|clusterrolebinding|role|rolebinding|configmap|deployment|service|podsecuritypolicy)') {
+    Write-Host "    $line"
+  } else { Write-Host "    $line" }
 }
 
-Write-Step 'Calico — wait for tigera-operator Deployment Available'
+Write-Step 'Calico - wait for tigera-operator Deployment Available'
 & kubectl wait --for=condition=Available deployment/tigera-operator -n tigera-operator --timeout=180s
 if ($LASTEXITCODE -ne 0) { throw "tigera-operator did not become Available within 180s" }
 Write-OK 'tigera-operator Available'
 
-Write-Step 'Calico — apply Installation CR'
+Write-Step 'Calico - apply Installation CR'
 & kubectl apply -f $CalicoInstallCR
 if ($LASTEXITCODE -ne 0) { throw "kubectl apply Calico Installation CR failed" }
 Write-OK 'Installation CR applied'
 
-Write-Step 'Calico — wait for nodes Ready (Calico data-plane up)'
+Write-Step 'Calico - wait for nodes Ready (Calico data-plane up)'
 # Nodes are NotReady until Calico's CNI binary lands on the node and
 # pod networking comes up. Allow up to 5 minutes on first cluster
 # bring-up (image pulls).
@@ -127,12 +156,12 @@ Write-OK 'all nodes Ready'
 # ---------------------------------------------------------------------
 # Image preload (avoids in-cluster pulls during pod start)
 # ---------------------------------------------------------------------
-Write-Step "Image — pull $BuyerchatImage"
+Write-Step "Image - pull $BuyerchatImage"
 & docker pull $BuyerchatImage
 if ($LASTEXITCODE -ne 0) { throw "docker pull $BuyerchatImage failed" }
 Write-OK "Image pulled to local Docker"
 
-Write-Step "Image — kind load into cluster '$ClusterName'"
+Write-Step "Image - kind load into cluster '$ClusterName'"
 & kind load docker-image $BuyerchatImage --name $ClusterName
 if ($LASTEXITCODE -ne 0) { throw "kind load docker-image failed" }
 Write-OK "Image side-loaded; ImagePullPolicy=IfNotPresent will not hit the registry"
@@ -140,7 +169,7 @@ Write-OK "Image side-loaded; ImagePullPolicy=IfNotPresent will not hit the regis
 # ---------------------------------------------------------------------
 # Apply buyerchat manifests
 # ---------------------------------------------------------------------
-Write-Step "Manifests — kubectl apply -f $ManifestsDir"
+Write-Step "Manifests - kubectl apply -f $ManifestsDir"
 & kubectl apply -f $ManifestsDir
 if ($LASTEXITCODE -ne 0) { throw "kubectl apply on buyerchat manifests failed" }
 Write-OK 'buyerchat manifests applied'
@@ -148,7 +177,7 @@ Write-OK 'buyerchat manifests applied'
 # ---------------------------------------------------------------------
 # Wait for Deployment Ready (degraded-mode tolerant)
 # ---------------------------------------------------------------------
-Write-Step 'Workload — wait for buyerchat Deployment Available'
+Write-Step 'Workload - wait for buyerchat Deployment Available'
 # Degraded mode: /api/healthcheck returns 503, BUT the TCP socket
 # probes (livenessProbe.tcpSocket / readinessProbe.tcpSocket) only
 # care that port 3000 accepts connections. Once Next.js is listening,
@@ -158,7 +187,7 @@ $timeoutSec = 300
 $deadline = (Get-Date).AddSeconds($timeoutSec)
 $ready = $false
 while ((Get-Date) -lt $deadline) {
-  $rolloutStatus = & kubectl rollout status deployment/buyerchat -n buyerchat --timeout=10s 2>&1
+  $null = Invoke-NativeCapture { kubectl rollout status deployment/buyerchat -n buyerchat --timeout=10s }
   if ($LASTEXITCODE -eq 0) { $ready = $true; break }
   Start-Sleep -Seconds 5
 }
@@ -182,7 +211,7 @@ Write-Host '    kubectl port-forward -n buyerchat svc/buyerchat 3000:3000' -Fore
 Write-Host '    # then in a third terminal:'
 Write-Host '    curl.exe -i http://localhost:3000/api/healthcheck' -ForegroundColor White
 Write-Host ''
-Write-Host '  Acceptance: ANY HTTP response (200 or 503) — degraded mode' -ForegroundColor White
+Write-Host '  Acceptance: ANY HTTP response (200 or 503) - degraded mode' -ForegroundColor White
 Write-Host '              returns 503 because DATABASE_URL is stubbed.' -ForegroundColor White
 Write-Host ''
 Write-Host '  Verify the Day-2 acceptance criteria:' -ForegroundColor White
