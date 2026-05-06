@@ -1,0 +1,54 @@
+# ingress-nginx values for the kind-based showcase cluster.
+#
+# Why these settings:
+#
+# - controller.service.type=NodePort
+#   On a managed cloud LB this would be LoadBalancer; on kind the LB
+#   provisioner doesn't exist, so we use NodePort + hostPort to expose
+#   the controller. NodePort alone wouldn't suffice — kind only
+#   publishes node ports we declared via extraPortMappings, which we
+#   set to 80/443 (see kind/cluster.yaml).
+#
+# - controller.hostPort.enabled=true
+#   Binds 80/443 on the kind node container itself. Combined with the
+#   extraPortMappings 80→80 / 443→443 in kind/cluster.yaml, the host
+#   laptop sees the controller at https://buyerchat.localtest.me/.
+#
+# - controller.extraArgs.publish-status-address=localhost
+#   Without this, ingress objects' .status.loadBalancer.ingress[].ip is
+#   left blank because there is no real LB. This populates the field
+#   with "localhost" so kubectl get ing is informative and so any
+#   tooling that polls .status doesn't loop.
+#
+# - controller.publishService.enabled=false
+#   Required: --publish-status-address and --publish-service are
+#   mutually exclusive (the controller F-fatals at startup if both are
+#   set). The chart enables publishService by default; we disable it so
+#   our publish-status-address override actually takes effect.
+#
+# - controller.admissionWebhooks.enabled=true (default, kept explicit)
+#   Pre-validates Ingress objects at admission time — catches typos in
+#   path types, nginx.ingress.kubernetes.io/* annotations, etc., before
+#   they hit the controller.
+
+controller:
+  # Recreate (not RollingUpdate): hostPort 80/443 can only be bound by
+  # one pod per node. With the default RollingUpdate strategy, the new
+  # pod stays Pending forever waiting for the host port the old pod is
+  # still holding, while the old pod stays alive waiting for the new
+  # one to become Ready — a deadlock that only manual pod-deletion
+  # breaks. Recreate kills the old pod first, then schedules the new
+  # one. Acceptable on a showcase cluster where ~5s of ingress
+  # downtime per upgrade is irrelevant.
+  updateStrategy:
+    type: Recreate
+  service:
+    type: NodePort
+  hostPort:
+    enabled: true
+  publishService:
+    enabled: false
+  extraArgs:
+    publish-status-address: localhost
+  admissionWebhooks:
+    enabled: true
