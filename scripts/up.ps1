@@ -167,60 +167,57 @@ if ($LASTEXITCODE -ne 0) { throw "kind load docker-image failed" }
 Write-OK "Image side-loaded; ImagePullPolicy=IfNotPresent will not hit the registry"
 
 # ---------------------------------------------------------------------
-# Apply buyerchat manifests
+# Apply buyerchat namespace
 # ---------------------------------------------------------------------
-Write-Step "Manifests - kubectl apply -f $ManifestsDir"
+# Day-3 note: the raw Deployment / Service / Secret / NetworkPolicies
+# under manifests/buyerchat/ are now owned by the Helm chart at
+# helm/buyerchat/. Only 00-namespace.yaml remains here, because the
+# chart doesn't manage the Namespace (PSS labels are an
+# infrastructure-level concern, not a workload concern, and the chart
+# may eventually be installed into multiple-tenant namespaces). The
+# helm install steps for the buyerchat workload are operator-driven
+# until Day 6 wires ArgoCD to take over.
+Write-Step "Namespace - kubectl apply -f $ManifestsDir"
 & kubectl apply -f $ManifestsDir
 if ($LASTEXITCODE -ne 0) { throw "kubectl apply on buyerchat manifests failed" }
-Write-OK 'buyerchat manifests applied'
+Write-OK 'buyerchat namespace applied (with restricted-PSS labels)'
 
 # ---------------------------------------------------------------------
-# Wait for Deployment Ready (degraded-mode tolerant)
+# Day-3 follow-up instructions (helm installs are operator-driven
+# until Day 6 GitOps takeover)
 # ---------------------------------------------------------------------
-Write-Step 'Workload - wait for buyerchat Deployment Available'
-# Degraded mode: /api/healthcheck returns 503, BUT the TCP socket
-# probes (livenessProbe.tcpSocket / readinessProbe.tcpSocket) only
-# care that port 3000 accepts connections. Once Next.js is listening,
-# the pod flips Ready, Deployment becomes Available, and we exit
-# successfully even though the HTTP healthcheck is 503.
-$timeoutSec = 300
-$deadline = (Get-Date).AddSeconds($timeoutSec)
-$ready = $false
-while ((Get-Date) -lt $deadline) {
-  $null = Invoke-NativeCapture { kubectl rollout status deployment/buyerchat -n buyerchat --timeout=10s }
-  if ($LASTEXITCODE -eq 0) { $ready = $true; break }
-  Start-Sleep -Seconds 5
-}
-if (-not $ready) {
-  Write-Host '[WARN] Deployment did not reach Available within 300s.' -ForegroundColor Yellow
-  Write-Host '       Inspect: kubectl describe pod -n buyerchat -l app.kubernetes.io/name=buyerchat' -ForegroundColor Yellow
-  Write-Host '       and:     kubectl logs   -n buyerchat -l app.kubernetes.io/name=buyerchat --tail=50' -ForegroundColor Yellow
-  Write-Host '       Common Day-2 cause: image USER 0 vs runAsNonRoot=true (see task_plan Day-2 risk row).' -ForegroundColor Yellow
-  exit 2
-}
-Write-OK 'buyerchat Deployment Available'
-
-# ---------------------------------------------------------------------
-# Smoke-test instructions
-# ---------------------------------------------------------------------
-Write-Step 'Smoke test'
+Write-Step 'Day-3 follow-ups (run after this script completes)'
 Write-Host ''
-Write-Host '  Run these in a separate terminal to verify:' -ForegroundColor White
+Write-Host '  Foundation infra (~3 min total):' -ForegroundColor White
 Write-Host ''
-Write-Host '    kubectl port-forward -n buyerchat svc/buyerchat 3000:3000' -ForegroundColor White
-Write-Host '    # then in a third terminal:'
-Write-Host '    curl.exe -i http://localhost:3000/api/healthcheck' -ForegroundColor White
+Write-Host '    # See infra/ingress-nginx/README.md, infra/cert-manager/README.md,'
+Write-Host '    # infra/sealed-secrets/README.md for full one-line install commands.'
+Write-Host '    helm repo add ingress-nginx  https://kubernetes.github.io/ingress-nginx'
+Write-Host '    helm repo add jetstack       https://charts.jetstack.io'
+Write-Host '    helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets'
+Write-Host '    helm repo update'
+Write-Host '    helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \'
+Write-Host '      -n ingress-nginx --create-namespace -f infra/ingress-nginx/values.yaml --wait'
+Write-Host '    helm upgrade --install cert-manager jetstack/cert-manager \'
+Write-Host '      -n cert-manager --create-namespace --set installCRDs=true --wait'
+Write-Host '    kubectl apply -f infra/cert-manager/clusterissuer-selfsigned.yaml'
+Write-Host '    helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \'
+Write-Host '      -n kube-system --wait'
 Write-Host ''
-Write-Host '  Acceptance: ANY HTTP response (200 or 503) - degraded mode' -ForegroundColor White
-Write-Host '              returns 503 because DATABASE_URL is stubbed.' -ForegroundColor White
+Write-Host '  Re-seal buyerchat-env (controller key is per-cluster — see' -ForegroundColor White
+Write-Host '  infra/sealed-secrets/README.md):' -ForegroundColor White
 Write-Host ''
-Write-Host '  Verify the Day-2 acceptance criteria:' -ForegroundColor White
+Write-Host '    # Recipe in helm/buyerchat/templates/sealed-secret.yaml leading comment.'
 Write-Host ''
-Write-Host '    kind get clusters'
-Write-Host '    kubectl get pods -A'
-Write-Host '    kubectl get ns buyerchat -o jsonpath=''{.metadata.labels}'''
-Write-Host '    kubectl get pods -n buyerchat'
-Write-Host '    kubectl get networkpolicies -n buyerchat'
+Write-Host '  Workload:' -ForegroundColor White
+Write-Host ''
+Write-Host '    helm upgrade --install buyerchat ./helm/buyerchat \'
+Write-Host '      -f helm/buyerchat/values.dev.yaml -n buyerchat --wait'
+Write-Host ''
+Write-Host '  Smoke test:' -ForegroundColor White
+Write-Host ''
+Write-Host '    curl -k -i https://buyerchat.localtest.me/api/healthcheck'
+Write-Host '    # Expect: HTTP 503 with body {"status":"degraded","reason":"db_unreachable"}'
 Write-Host ''
 Write-Host '  Tear down:' -ForegroundColor White
 Write-Host ''
