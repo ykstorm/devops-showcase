@@ -1,0 +1,20 @@
+apiVersion: v2
+name: buyerchat
+description: |-
+  Showcase deployment of ghcr.io/ykstorm/buyerchat for the P3
+  DevOps platform sprint. Replaces the Day-2 raw manifests under
+  manifests/buyerchat/. Renders a restricted-PSS-compliant Deployment
+  + Service + Ingress (cert-manager TLS via the selfsigned
+  ClusterIssuer) + 3 NetworkPolicies + a SealedSecret for the env.
+type: application
+version: 0.1.0
+appVersion: "sha-8560cb3"
+home: https://github.com/ykstorm/devops-showcase
+sources:
+  - https://github.com/ykstorm/devops-showcase
+keywords:
+  - buyerchat
+  - devops-showcase
+  - p3
+maintainers:
+  - name: ykstorm
