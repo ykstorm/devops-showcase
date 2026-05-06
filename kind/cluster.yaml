@@ -6,3 +6,17 @@ networking:
   podSubnet: 192.168.0.0/16
 nodes:
   - role: control-plane
+    # Required for Day-3 ingress-nginx (hostPort 80/443 on the kind node
+    # is only reachable from the host if Docker publishes the node
+    # container's 80/443 to the host). Without these mappings,
+    # https://buyerchat.localtest.me/ resolves to 127.0.0.1 but the
+    # request never reaches the controller. Adding/changing
+    # extraPortMappings requires recreating the cluster (down.ps1 +
+    # up.ps1) — kind cannot mutate node port publishing in place.
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
