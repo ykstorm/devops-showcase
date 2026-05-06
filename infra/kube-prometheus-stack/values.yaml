@@ -1,0 +1,103 @@
+# kube-prometheus-stack values for the showcase cluster.
+#
+# Chart version pinned by the helm install command (see README). All
+# overrides below are intentional — defaults from the chart that aren't
+# mentioned here are accepted as-is.
+
+# -----------------------------------------------------------------------
+# Disable alertmanager (showcase scope: skip alerting; Day-7 stretch)
+# -----------------------------------------------------------------------
+alertmanager:
+  enabled: false
+
+# -----------------------------------------------------------------------
+# Prometheus
+# -----------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    # CRITICAL: without this the operator filters ServiceMonitor objects
+    # to those carrying the chart's own release label
+    # (release=kps), which means a ServiceMonitor we author in another
+    # release (helm/buyerchat in Phase C) is silently ignored. Setting
+    # this to false makes the operator pick up ANY ServiceMonitor
+    # cluster-wide that matches the (now-empty) selector.
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+    # Same gotcha for the other selector kinds — we don't author these
+    # in Phase B/C, but flipping them now means a future PodMonitor or
+    # PrometheusRule from another chart will Just Work.
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+    # emptyDir storage. SHOWCASE TRADE-OFF: data lives in the pod's
+    # tmpfs and dies on pod restart / kind cluster recycle. Production
+    # would use a PVC backed by a StorageClass (e.g. EBS gp3 / GCE
+    # pd-ssd). For a local kind showcase the laptop's host-path PV
+    # provisioner exists but adds noise without value — losing 24h of
+    # demo metrics on `down.ps1` is fine.
+    storageSpec: {}
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+    # Default scrape interval (per-target overrides happen on the
+    # ServiceMonitor itself).
+    scrapeInterval: 30s
+
+# -----------------------------------------------------------------------
+# Grafana
+# -----------------------------------------------------------------------
+grafana:
+  enabled: true
+
+  # SHOWCASE-ONLY admin password. NOT a real secret — picked because
+  # it's the chart's own well-known default and recruiters reading the
+  # repo can grep for it without a follow-up question. A production
+  # install would set this via `existingSecret` pointing at a
+  # SealedSecret-decrypted Secret.
+  adminPassword: prom-operator
+
+  # Grafana stores dashboards/users/datasources in SQLite-on-disk by
+  # default; this volume is also emptyDir for the same reason as
+  # Prometheus above. Re-imports on pod restart take ~5s.
+  persistence:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.localtest.me
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.localtest.me
+    annotations:
+      cert-manager.io/cluster-issuer: selfsigned
+
+  # ConfigMap-imported dashboards (any ConfigMap in any namespace that
+  # carries the `grafana_dashboard: "1"` label is auto-loaded by the
+  # sidecar). Phase C ships infra/kube-prometheus-stack/dashboards/
+  # buyerchat-configmap.yaml that uses this hook.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      # All namespaces, not just `monitoring` — keeps the
+      # buyerchat-dashboard ConfigMap optional-on-namespace.
+      searchNamespace: ALL
