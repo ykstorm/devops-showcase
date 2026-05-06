@@ -2,6 +2,207 @@
 
 ---
 
+## Day 3 — 2026-05-06 — `147205c` + this docs commit — ingress-nginx + cert-manager + sealed-secrets + buyerchat Helm chart + SealedSecret + cluster-recycle prereq
+
+**Status:** [OK] — all 7 Day-3 artifacts shipped, all 10 acceptance
+criteria from the Day-3 brief verified live against the kind cluster.
+End-to-end smoke (HTTPS curl through ingress with self-signed cert
+through Helm-managed pod with SealedSecret-decrypted env) returns the
+expected `HTTP 503 {"status":"degraded","reason":"db_unreachable"}`.
+
+### What landed (8-commit sequence, with the recycle-prereq commit
+counted as 0/7)
+
+| # | SHA       | Subject |
+|---|-----------|---------|
+| 0 | `8f88e9e` | `chore(kind): extraPortMappings 80/443 for Day-3 ingress-nginx` |
+| 1 | `b58a12c` | `feat(infra): ingress-nginx via Helm + values + README` |
+| 2 | `a62cde1` | `feat(infra): cert-manager + self-signed ClusterIssuer` |
+| 3 | `aae1ecb` | `feat(infra): sealed-secrets controller via Helm` |
+| 4 | `c310bdd` | `feat(helm): buyerchat chart 0.1.0 (deployment + service + ingress + netpols)` |
+| 5 | `bb457c1` | `feat(secrets): SealedSecret for buyerchat-env (replaces stub plaintext)` |
+| 6 | `147205c` | `refactor(buyerchat): switch from raw manifests to Helm-managed` |
+| 7 | this commit | `docs(p3-day3): progress entry + acceptance criteria + smoke results` |
+
+### Acceptance criteria (verified live)
+
+| # | Criterion | Result |
+|---|-----------|--------|
+| 1 | ingress-nginx controller pod Running in `ingress-nginx` ns | `ingress-nginx-controller-68cf44757-zkn5c 1/1 Running` |
+| 2 | cert-manager 3 pods (controller, webhook, cainjector) Running | all 1/1 Running |
+| 3 | sealed-secrets controller pod Running in `kube-system` | `sealed-secrets-6f6c58c5c9-6nq2t 1/1 Running` |
+| 4 | ClusterIssuer `selfsigned` Ready: True | confirmed via `jsonpath` |
+| 5 | `helm/buyerchat/` chart renders + applies cleanly via `helm install` | `helm list -n buyerchat` shows `buyerchat 0.1.0 deployed` |
+| 6 | buyerchat pod 1/1 Running, Helm-managed (not raw kubectl) | `buyerchat-7767cc9d97-* 1/1 Running`, `app.kubernetes.io/managed-by=Helm` |
+| 7 | SealedSecret in git → Secret decrypted by controller in cluster | `sealedsecret/buyerchat-env SYNCED True` → `secret/buyerchat-env Opaque DATA=10` |
+| 8 | Ingress routes `https://buyerchat.localtest.me/api/healthcheck` | `ingress/buyerchat ADDRESS=localhost HOST=buyerchat.localtest.me PORTS=80,443` |
+| 9 | curl returns HTTP 503 db_unreachable via TLS (self-signed cert) | `HTTP 503` body `{"status":"degraded","reason":"db_unreachable"}`, served via TLS (Strict-Transport-Security header present) |
+| 10 | git status clean after final commit | clean after this commit lands |
+
+### Files touched
+
+**Added (12 new):**
+
+- `infra/ingress-nginx/values.yaml` — chart values overrides
+  (publishService=false + extraArgs.publish-status-address=localhost +
+  updateStrategy=Recreate + hostPort.enabled=true).
+- `infra/ingress-nginx/README.md` — install command, port-publish
+  flow diagram, `Recreate` rationale, mutually-exclusive flag note,
+  Day-7 cleanup ticket.
+- `infra/cert-manager/clusterissuer-selfsigned.yaml` — single
+  ClusterIssuer with self-signed Issuer spec.
+- `infra/cert-manager/README.md` — install, rationale for self-signed
+  vs ACME, how buyerchat consumes it, verify recipe.
+- `infra/sealed-secrets/README.md` — install, controller naming
+  contract, round-trip example, ephemeral-key showcase limit, key
+  backup/restore recipe (Day-7 cleanup).
+- `helm/buyerchat/Chart.yaml` — chart metadata 0.1.0, appVersion
+  `sha-8560cb3`.
+- `helm/buyerchat/values.yaml` — production-shaped defaults.
+- `helm/buyerchat/values.dev.yaml` — kind-cluster overrides
+  (replicaCount=1, lower resources).
+- `helm/buyerchat/templates/_helpers.tpl` — name/fullname/chart/labels/
+  selectorLabels helpers (recommended-labels set).
+- `helm/buyerchat/templates/deployment.yaml` — restricted-PSS-compliant
+  Deployment, tcpSocket startupProbe preserved with rationale comment,
+  emptyDir mounts for `/tmp` + `/app/.next/cache`.
+- `helm/buyerchat/templates/service.yaml` — ClusterIP :3000.
+- `helm/buyerchat/templates/ingress.yaml` — host
+  `buyerchat.localtest.me`, TLS via cert-manager annotation
+  `cert-manager.io/cluster-issuer: selfsigned`.
+- `helm/buyerchat/templates/networkpolicy-deny.yaml` — chart-level
+  default-deny.
+- `helm/buyerchat/templates/networkpolicy-dns.yaml` — DNS egress allow.
+- `helm/buyerchat/templates/networkpolicy-ingress.yaml` — Day-2 same-ns
+  rule extended to also allow ingress from the `ingress-nginx`
+  namespace (rationale comment in-file).
+- `helm/buyerchat/templates/sealed-secret.yaml` — kubeseal-encoded
+  SealedSecret bound to this cluster's controller key, with leading
+  comment recipe for re-sealing after cluster recycle.
+
+**Modified (2):**
+
+- `kind/cluster.yaml` — `extraPortMappings` 80/443 (commit `8f88e9e`,
+  recycle-prereq landed in a prior turn).
+- `scripts/up.ps1` — drop the buyerchat-Deployment wait (no raw
+  Deployment any more); rename "manifests" step to "namespace";
+  print Day-3 follow-up steps (helm installs + re-seal + workload
+  install) the operator runs after `up.ps1` completes.
+
+**Removed (6):**
+
+- `manifests/buyerchat/10-secret-stub.yaml` — replaced by
+  `helm/buyerchat/templates/sealed-secret.yaml` (commit `bb457c1`).
+- `manifests/buyerchat/20-deployment.yaml`,
+  `manifests/buyerchat/30-service.yaml`,
+  `manifests/buyerchat/40-netpol-default-deny.yaml`,
+  `manifests/buyerchat/41-netpol-allow-dns-egress.yaml`,
+  `manifests/buyerchat/42-netpol-allow-internal-ingress.yaml` —
+  replaced by helm chart (commit `147205c`).
+
+Surviving raw manifests in `manifests/buyerchat/`:
+
+- `00-namespace.yaml` — kept (chart doesn't manage the Namespace; PSS
+  labels are an infrastructure-level concern).
+
+### What surprised
+
+- **Helm chart vs upgrade vs Kubernetes strategic-merge.** First
+  ingress-nginx install set `controller.extraArgs.publish-status-
+  address=localhost`. Controller F-fataled at startup:
+  > flags --publish-service and --publish-status-address are
+  > mutually exclusive
+  Setting `publishService.enabled=false` and `helm upgrade` again
+  failed with:
+  > Deployment.apps "ingress-nginx-controller" is invalid:
+  > spec.strategy.rollingUpdate: Forbidden: may not be specified
+  > when strategy `type` is 'Recreate'
+  Cause: Kubernetes' strategic-merge keeps the OLD Deployment's
+  `spec.strategy.rollingUpdate` block when the new manifest only
+  specifies `type: Recreate`. `helm template` rendered cleanly — the
+  bug was the in-cluster merge, not the template. Fix: `helm
+  uninstall` + `helm install` (fresh Deployment with only `type:
+  Recreate`, no leftover rollingUpdate fields). Documented in
+  `infra/ingress-nginx/README.md` Recreate rationale.
+
+- **Single-node + hostPort = RollingUpdate deadlock.** While
+  diagnosing the publishService fight, the new pod sat Pending
+  forever waiting for hostPort 80/443 the old crashing pod still
+  held; the Deployment couldn't progress because RollingUpdate's
+  default `maxUnavailable: 1` / `maxSurge: 25%` produces "create new
+  before kill old" semantics that hostPort cannot satisfy on a
+  single-node cluster. `controller.updateStrategy.type=Recreate` is
+  the long-term fix and now lives in `values.yaml` with a comment.
+
+- **NetworkPolicy `podSelector` schema strictness.** First chart
+  install failed with:
+  > .spec.podSelector.app.kubernetes.io/component: field not
+  > declared in schema
+  Cause: my `networkpolicy-ingress.yaml` template included
+  `selectorLabels` directly under `podSelector:` (which is fine for
+  Service `spec.selector` but NOT for NetworkPolicy `spec.podSelector`,
+  which requires a `matchLabels:` wrapper). One-line template fix.
+  No equivalent issue in `default-deny` / `dns-egress` (both use
+  `podSelector: {}`) or `service.yaml` (Service `selector` is a flat
+  map, not a LabelSelector). Worth remembering: `LabelSelector`
+  (Deployment, NetworkPolicy) ≠ `map[string]string` (Service) in the
+  Kubernetes API.
+
+- **`helm install` on a previously-failed release name.** First
+  failed install left the release in `failed` status; `helm install`
+  refuses to reuse the name. `helm uninstall` + retry was needed.
+  In production, `helm upgrade --install` would be the safer default;
+  on a fresh kind it doesn't matter.
+
+- **Helm v4.1.4 vs the `-a` / `--all` short flags on `helm list`.**
+  v4 dropped the `-a` shortform that was customary in v3 docs, and
+  the long form is now `--all-namespaces` (different semantic). I
+  used neither in the final commit recipe to keep the README v3/v4
+  portable.
+
+### What deferred (and why)
+
+- **Pushing Day-3 commits to origin.** The Day-3 brief authorizes
+  destructive cluster-state changes (uninstall raw manifests, helm
+  install fresh) but doesn't authorize a `git push`. Operator can
+  `git push` when ready to publish; nothing else is staged.
+- **up.ps1 doesn't auto-helm-install the foundation infra +
+  buyerchat chart.** Captured in commit `147205c`'s body: the
+  committed SealedSecret is bound to the controller's per-cluster
+  sealing key, so a clean recycle requires manual re-sealing before
+  the buyerchat helm install can succeed. Wiring that into `up.ps1`
+  needs either key backup/restore (a Day-7 cleanup ticket) or
+  in-script kubeseal that mutates a committed file (different
+  badness). Day 6 ArgoCD takeover would retire any auto-install
+  shim anyway.
+- **Sealed-secrets controller key backup/restore.** Day-7 cleanup
+  ticket tracked in `infra/sealed-secrets/README.md`. Showcase
+  accepts the ephemeral-key limit because the only protected values
+  are conspicuously-fake stubs.
+
+### Discipline checklist applied
+
+- **§9 (lint/build/test gates):** `helm lint helm/buyerchat`
+  passes; `helm template ... | kubectl apply --dry-run=client -f -`
+  validates every rendered resource; live cluster verification
+  through all 10 acceptance criteria; HTTPS smoke through end-to-end
+  flow returns the expected 503/JSON body.
+- **§10 (report-back format):** Day-3 §14 verdict carries SHAs +
+  files-changed counts + acceptance grid + commit-list status. This
+  progress entry is the in-tree mirror.
+- **§13 (handoff):** Day-3 entry prepended above the Day-2 entry,
+  preserving append-only most-recent-first ordering.
+- **§14 (verdict):** `[OK]` (1-line summary, all 10 criteria pass).
+- **§15 (autonomous decisions ≥80%):** all in-task fixes
+  (publishService=false, updateStrategy=Recreate, podSelector
+  matchLabels wrap, helm uninstall on failed release, raw manifest
+  service+netpol deletions extending the brief's 2-deletion list)
+  documented in commit bodies. The single destructive escalation —
+  cluster recycle in commit `8f88e9e` — was operator-confirmed
+  before proceeding.
+
+---
+
 ## Day 2 — 2026-05-04 — `3fe9061` (HEAD of 5-commit Day-2 sequence) — Cluster + Calico CNI + restricted-PSS buyerchat ns + raw manifests + NetworkPolicies + lifecycle scripts
 
 **Status:** [PARTIAL] — all 12 Day-2 artifacts written and committed
