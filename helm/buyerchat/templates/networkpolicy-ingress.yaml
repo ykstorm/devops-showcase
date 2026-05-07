@@ -9,14 +9,19 @@
 # which is a *different* namespace than buyerchat — the same-ns
 # selector would deny those flows.
 #
-# This template encodes both allow paths:
+# This template encodes the allow paths:
 #   1. From any pod in the ingress-nginx namespace
 #      (selected via the chart-configurable namespace label).
 #   2. From any pod in the buyerchat namespace itself
 #      (preserved from the Day-2 manifest).
+#   3. (Day-4) From any pod in the monitoring namespace, gated on
+#      .Values.serviceMonitor.enabled. Lets the kube-prometheus-stack
+#      Prometheus pod reach buyerchat:3000 for /api/metrics scraping;
+#      without this rule the chart's default-deny would silently swallow
+#      every scrape attempt and the target would show DOWN.
 #
-# Both are funneled through the same `ingress` block as separate
-# `from` entries (OR semantics — a flow from either source passes).
+# All are funneled through the same `ingress` block as separate
+# `from` entries (OR semantics — a flow from any source passes).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -35,6 +40,11 @@ spec:
             matchLabels:
               {{ .Values.networkPolicy.ingressControllerNamespaceLabel.key }}: {{ .Values.networkPolicy.ingressControllerNamespaceLabel.value }}
         - podSelector: {}
+        {{- if .Values.serviceMonitor.enabled }}
+        - namespaceSelector:
+            matchLabels:
+              {{ .Values.networkPolicy.monitoringNamespaceLabel.key }}: {{ .Values.networkPolicy.monitoringNamespaceLabel.value }}
+        {{- end }}
       ports:
         - protocol: TCP
           port: 3000

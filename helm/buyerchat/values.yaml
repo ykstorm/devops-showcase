@@ -72,6 +72,29 @@ networkPolicy:
   ingressControllerNamespaceLabel:
     key: kubernetes.io/metadata.name
     value: ingress-nginx
+  # Same label scheme for the monitoring namespace (kube-prometheus-stack
+  # is installed there). Used by the templates' ingress NetworkPolicy
+  # to allow Prometheus pods to reach buyerchat:3000 for /api/metrics
+  # scrape. Only takes effect when serviceMonitor.enabled is true.
+  monitoringNamespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: monitoring
+
+# ServiceMonitor for kube-prometheus-stack to scrape /api/metrics. The
+# chart-installed Prometheus operator (release name `kps`) has
+# serviceMonitorSelectorNilUsesHelmValues=false in
+# infra/kube-prometheus-stack/values.yaml, so it picks up SMs cluster-
+# wide regardless of release label — but we set release: kps anyway as
+# a defence-in-depth signal of intended ownership.
+serviceMonitor:
+  enabled: true
+  path: /api/metrics
+  port: http
+  interval: 30s
+  scrapeTimeout: 10s
+  # Label that the kube-prometheus-stack operator's selector matches.
+  # Override at install time if a different release name is in use.
+  releaseLabel: kps
 
 # Probes — preserved from manifests/buyerchat/20-deployment.yaml.
 # tcpSocket, NOT httpGet. Day-2 documented the why:
