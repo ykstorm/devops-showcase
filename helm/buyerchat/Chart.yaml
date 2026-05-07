@@ -7,8 +7,8 @@ description: |-
   + Service + Ingress (cert-manager TLS via the selfsigned
   ClusterIssuer) + 3 NetworkPolicies + a SealedSecret for the env.
 type: application
-version: 0.1.0
-appVersion: "sha-8560cb3"
+version: 0.1.1
+appVersion: "sha-84c37cc"
 home: https://github.com/ykstorm/devops-showcase
 sources:
   - https://github.com/ykstorm/devops-showcase

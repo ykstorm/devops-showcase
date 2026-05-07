@@ -5,7 +5,7 @@ image:
   repository: ghcr.io/ykstorm/buyerchat
   # Pinned to an immutable SHA. The trade-offs entry on Day 7 documents
   # why we never use :latest or a moving branch tag.
-  tag: sha-8560cb3
+  tag: sha-84c37cc
   pullPolicy: IfNotPresent
 
 replicaCount: 2
