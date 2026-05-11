@@ -1,3 +1,6 @@
+[![Test Status](https://github.com/ykstorm/devops-showcase/actions/workflows/ci.yml/badge.svg)](https://github.com/ykstorm/devops-showcase/actions)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 # devops-showcase
 
 **GitOps-native Kubernetes platform on your local machine.**  
