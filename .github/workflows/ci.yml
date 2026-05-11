@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15+'
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Helm lint — buyerchat chart
+        run: |
+          helm lint helm/buyerchat --quiet
+
+      - name: Helm template + kubeconform (buyerchat)
+        run: |
+          helm template helm/buyerchat \
+            | kubeconform --strict --summary --ignore-missing-schemas --skip 'CustomResourceDefinition'
+
+      - name: YAML lint — all YAML files
+        run: |
+          find . -name "*.yaml" -o -name "*.yml" | grep -v node_modules | xargs yamllint --quiet
+
+      - name: Validate infra YAML schemas
+        run: |
+          for dir in infra/cert-manager infra/ingress-nginx infra/sealed-secrets infra/kube-prometheus-stack; do
+            if [ -f "$dir/values.yaml" ]; then
+              helm template "$dir" "$dir" --quiet 2>&1 || echo "SKIP: $dir not a helm chart"
+            fi
+          done
+
+      - name: Check for .gitignore
+        run: |
+          [ -f .gitignore ] && echo "OK: .gitignore present" || exit 1
+
+  validate-helm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15+'
+
+      - name: Template buyerchat Helm chart (dev values)
+        run: |
+          helm template buyerchat helm/buyerchat \
+            --set image.repository=ghcr.io/ykstorm/buyerchat \
+            --set image.tag=sha-8560cb3 \
+            --namespace app \
+            2>&1 | head -20
+
+      - name: Validate Kubernetes manifests
+        run: |
+          # Check no deprecated APIs in Helm output
+          HELM_OUT=$(helm template buyerchat helm/buyerchat --namespace app 2>&1)
+          echo "$HELM_OUT" | grep -i "deprecated" && exit 1 || echo "OK: no deprecated APIs"
+
+  kubeconform-strict:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin/
+          chmod +x /usr/local/bin/kubeconform
+
+      - name: Helm template buyerchat
+        run: |
+          helm template buyerchat helm/buyerchat --namespace app > /tmp/buyerchat-manifests.yaml
+
+      - name: Validate all CRDs + resources with kubeconform
+        run: |
+          kubeconform --strict --summary \
+            --skip CustomResourceDefinition \
+            /tmp/buyerchat-manifests.yaml

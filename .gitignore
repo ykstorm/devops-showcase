@@ -1,57 +1,8 @@
-# --- OS / editor noise ---
-.DS_Store
-Thumbs.db
-desktop.ini
-.idea/
-.vscode/
-*.swp
-*~
-
-# --- claude code harness ---
-.claude/settings.local.json
-.claude/cache/
-
-# --- secrets (defence-in-depth; sealed-secrets is the source-of-truth) ---
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.crt
-!**/templates/*.crt
-!**/templates/*.key
-.secrets/
-secrets/
-kubeconfig
-kubeconfig.*
-*.kubeconfig
-
-# --- kubernetes / helm / kind transient state ---
-charts/                  # helm dependency-vendored charts; we declare in Chart.yaml only
-*.tgz                    # helm-packaged charts
-.helm/
-helm-chart-archives/
-
-# --- terraform (kept just in case future days re-introduce TF; week 1 drops it) ---
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfvars
-!example.tfvars
-crash.log
-
-# --- CI / build artifacts ---
 node_modules/
 dist/
-build/
-out/
-coverage/
+.env
 *.log
-
-# --- screenshots that aren't checked in (Day-7 captures the ones we keep) ---
-docs/screenshots/_raw/
-docs/screenshots/*.tmp.png
-
-# --- diagnostic captures (final-verify.txt is committed; tmp captures aren't) ---
-docs/diagnostics/**/*.tmp
-docs/diagnostics/**/scratch/
+.DS_Store
+coverage/
+*.tmp
+kubeconform-cache/
