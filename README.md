@@ -1,7 +1,7 @@
 # devops-showcase
 
 [![CI](https://github.com/ykstorm/devops-showcase/actions/workflows/ci.yml/badge.svg)](https://github.com/ykstorm/devops-showcase/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0
 
 **GitOps-native Kubernetes platform on your local machine.**
 kind cluster + ArgoCD app-of-apps + Argo Rollouts (canary deploys + auto-rollback) + Prometheus + Loki + Tempo + Grafana. `make up` brings up the full stack in under 10 minutes. Zero infra cost.
