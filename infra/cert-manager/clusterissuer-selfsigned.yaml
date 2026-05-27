@@ -33,6 +33,6 @@ kind: ClusterIssuer
 metadata:
   name: selfsigned
   labels:
-    app.kubernetes.io/part-of: devops-showcase
+    app.kubernetes.io/part-of: stackup
 spec:
   selfSigned: {}

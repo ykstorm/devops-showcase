@@ -16,7 +16,7 @@ log_pass() { echo -e "${GREEN}✓ $1${NC}"; }
 log_warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
 log_fail() { echo -e "${RED}✗ $1${NC}"; ERRORS=$((ERRORS+1)); }
 
-echo "=== devops-showcase smoke test ==="
+echo "=== stackup smoke test ==="
 
 # 1. Helm lint
 echo ""

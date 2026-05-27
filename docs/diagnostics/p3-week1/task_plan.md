@@ -140,13 +140,13 @@ applied via raw YAML manifests (no Helm yet — Day 3). Smoke test via
 11. `scripts/up.ps1` — PowerShell-native lifecycle: precheck → kind
     create → Calico install → image preload → manifest apply →
     Deployment Available wait → smoke-test recipe printed.
-12. `scripts/down.ps1` — `kind delete cluster --name devops-showcase`
+12. `scripts/down.ps1` — `kind delete cluster --name stackup`
     (gated behind interactive confirm or `-Force` flag).
 13. Day-2 progress.md entry prepended.
 
 **Acceptance criteria (operator-side after `scripts\up.ps1` runs cleanly):**
 
-1. `kind get clusters` lists `devops-showcase`.
+1. `kind get clusters` lists `stackup`.
 2. `kubectl get pods -A` shows `calico-*` pods Running, no `kindnet-*`.
 3. `kubectl get ns buyerchat -o jsonpath='{.metadata.labels}'`
    includes `pod-security.kubernetes.io/enforce: restricted`.
@@ -311,7 +311,7 @@ known.
       findings Q-12 degraded-mode expectation) — and the body is the
       503 JSON shape from `buyerchat-p1` Day 6 (`{ "status":
       "degraded", ... }`).
-- [ ] `https://buyerchat.local.devops-showcase.dev/` (via /etc/hosts)
+- [ ] `https://buyerchat.local.stackup.dev/` (via /etc/hosts)
       returns a 200 from the Next.js page (the page renders even
       though the API route is degraded).
 
@@ -374,7 +374,7 @@ appears in Tempo. RED-metrics dashboard pre-wired in Grafana.
 - [ ] Prometheus targets page (`/targets`) shows `buyerchat` target
       `UP`.
 - [ ] Grafana loads at
-      `https://grafana.local.devops-showcase.dev/`, admin login
+      `https://grafana.local.stackup.dev/`, admin login
       works (pwd from SealedSecret).
 - [ ] "Buyerchat — RED" dashboard auto-imports and renders 3 panels
       with non-empty data (5xx panel will show non-zero — that's the
@@ -446,7 +446,7 @@ the cluster purely via ArgoCD's auto-sync.
 
 - [ ] `kubectl get applications -n argocd` shows 1 root + 8 child
       apps, all `Synced: Synced` + `Health: Healthy`.
-- [ ] `https://argocd.local.devops-showcase.dev/` loads, admin login
+- [ ] `https://argocd.local.stackup.dev/` loads, admin login
       works.
 - [ ] App-of-apps tree visible in UI; root app shows children
       correctly nested.
