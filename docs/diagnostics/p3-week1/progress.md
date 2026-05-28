@@ -351,7 +351,7 @@ the cluster forward idempotently and the smoke battery + healthcheck
 ran clean.
 
 **Toolchain (post-reboot):** docker `29.4.1`, kind `v0.31.0`,
-helm `v4.1.4`, kubectl context `kind-devops-showcase`. The kind container
+helm `v4.1.4`, kubectl context `kind-stackup`. The kind container
 survived the reboot (Docker Desktop's container restart-policy preserved
 it); cluster age 127m at verification time.
 
@@ -364,7 +364,7 @@ durable in git).
 
 **Smoke battery (`kubectl get …`):**
 
-- `kind get clusters` → `devops-showcase` (criterion 1 PASS).
+- `kind get clusters` → `stackup` (criterion 1 PASS).
 - `kubectl get pods -A` — Calico pods Running, no kindnet, all
   `calico-apiserver` / `calico-system` / `kube-system` /
   `tigera-operator` pods 1/1 Running (criterion 2 PASS).
@@ -373,7 +373,7 @@ durable in git).
   present (criterion 3 PASS).
 - `kubectl get pods -n buyerchat` — `buyerchat-65598c6bd5-nk7n8 1/1
   Running 1 restart (2m36s stable)` on
-  `devops-showcase-control-plane` (criterion 4 PASS).
+  `stackup-control-plane` (criterion 4 PASS).
 - `kubectl get networkpolicies -n buyerchat` — three policies:
   `default-deny`, `allow-dns-egress`, `allow-internal-ingress`
   (criterion 5 PASS).
@@ -416,7 +416,7 @@ test. Recorded as DEFERRED, not failed.
    - `winget install Kubernetes.kind --silent --accept-source-agreements`
    - **Close + reopen PowerShell** to refresh PATH.
    - Verify `helm version` and `kind version` print.
-   - Run `cd C:\Users\pc\Documents\devops-showcase ; .\scripts\up.ps1`.
+   - Run `cd C:\Users\pc\Documents\stackup ; .\scripts\up.ps1`.
    - Run the printed smoke-test commands; confirm criteria 1-6.
    - Optional: run `.\scripts\down.ps1` to verify criterion 7
      (or leave the cluster up for Day 3).
@@ -470,7 +470,7 @@ for Day-4 operator review with a default proceed.
   table, anti-touch list, discipline-references mapping, definition-
   of-done state machine.
 - `docs/diagnostics/p3-week1/findings.md` (NEW, ~13 KB) — investigation
-  output. Six lettered sections: current state of `devops-showcase/`
+  output. Six lettered sections: current state of `stackup/`
   (truly empty pre-write, end-state file tree post-write), local
   toolchain inventory (Docker installed but daemon stopped; kubectl
   v1.28.2 present; helm + kind absent), GHCR pull verification (could

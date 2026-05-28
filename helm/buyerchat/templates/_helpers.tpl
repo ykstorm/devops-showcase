@@ -38,7 +38,6 @@ https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
 helm.sh/chart: {{ include "buyerchat.chart" . }}
 {{ include "buyerchat.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-app.kubernetes.io/component: web
 app.kubernetes.io/part-of: stackup
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
