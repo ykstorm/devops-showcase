@@ -1,4 +1,4 @@
-# SPEC.md — devops-showcase
+# SPEC.md — stackup
 
 > 1-page summary. Verify every claim against actual code/config before committing.
 
@@ -6,7 +6,7 @@
 
 ## What it is
 
-**devops-showcase** is a GitOps-native Kubernetes platform running on a local kind cluster. It demonstrates production-grade infra: ArgoCD app-of-apps, Argo Rollouts canary deploys, ingress-nginx, cert-manager TLS, Sealed Secrets, Prometheus + Loki + Tempo + Grafana observability stack. `make up` brings up everything in under 10 minutes. $0 infra cost.
+**stackup** is a GitOps-native Kubernetes platform running on a local kind cluster. It demonstrates production-grade infra: ArgoCD app-of-apps, Argo Rollouts canary deploys, ingress-nginx, cert-manager TLS, Sealed Secrets, Prometheus + Loki + Tempo + Grafana observability stack. `make up` brings up everything in under 10 minutes. $0 infra cost.
 
 ---
 

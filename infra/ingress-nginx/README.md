@@ -28,7 +28,7 @@ laptop:443  ──Docker port-publish──▶  kind-node:443  ──hostPort─
 If `https://buyerchat.localtest.me/` does not resolve to the
 controller, check both halves of that path:
 
-1. `docker ps --format '{{.Names}}\t{{.Ports}}' | grep devops-showcase`
+1. `docker ps --format '{{.Names}}\t{{.Ports}}' | grep stackup`
    must show `0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp`. If missing,
    `kind/cluster.yaml` lost its `extraPortMappings` and the cluster
    needs `down.ps1 + up.ps1` to recreate.

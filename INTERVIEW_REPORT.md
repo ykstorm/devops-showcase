@@ -1,4 +1,4 @@
-# devops-showcase — Interview Report
+# stackup — Interview Report
 
 ## What I built
 
@@ -88,4 +88,4 @@ Be ready to explain:
 - Self-signed CA vs ACME tradeoffs (answer: local can't reach LE, production uses ACME)
 - Sealed Secrets per-cluster key limitation (answer: cluster deletion = unrecoverable sealed secrets)
 
-This project lives at: github.com/ykstorm/devops-showcase
+This project lives at: github.com/ykstorm/stackup

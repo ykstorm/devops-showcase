@@ -119,19 +119,19 @@ Deletes the kind cluster. Clean — no leaked Docker networks or volumes.
 
 ```bash
 # Cluster up
-kind get clusters                          # → devops-showcase
+kind get clusters                          # → stackup
 kubectl get pods -A                        # zero CrashLoopBackOff / Error
 
 # ArgoCD GitOps health
 kubectl get applications -n argocd         # root + 8 children, all Synced + Healthy
-open https://argocd.local.devops-showcase.dev/  # admin password: see argocd/values.yaml
+open https://argocd.local.stackup.dev/  # admin password: see argocd/values.yaml
 
 # Workload
-curl https://buyerchat.local.devops-showcase.dev/api/healthcheck
+curl https://buyerchat.local.stackup.dev/api/healthcheck
 # → HTTP 503 {"status":"degraded","reason":"db_unreachable"} via TLS
 
 # Observability
-open https://grafana.local.devops-showcase.dev/  # admin / prom-operator
+open https://grafana.local.stackup.dev/  # admin / prom-operator
 # → Buyerchat RED dashboard renders (5xx panel shows non-zero — expected in degraded mode)
 # → Loki Explore shows live pod logs
 # → Tempo Explore shows traces (if buyerchat emits OTLP natively)
@@ -141,7 +141,7 @@ kubectl get rollout -n app buyerchat       # Healthy
 kubectl argo rollouts get rollout buyerchat -n app --watch
 
 # Prometheus targets
-open https://prometheus.local.devops-showcase.dev/targets  # all UP
+open https://prometheus.local.stackup.dev/targets  # all UP
 
 # NetworkPolicy enforcement
 kubectl run test --image=alpine --rm -it -n app -- wget -qO- http://buyerchat:3000  # DENIED (default-deny)
@@ -153,10 +153,10 @@ kubectl run test --image=alpine --rm -it -n ingress-nginx -- wget -qO- http://bu
 Add to `/etc/hosts` (or `C:\Windows\System32\drivers\etc\hosts` on Windows):
 
 ```
-127.0.0.1 buyerchat.local.devops-showcase.dev
-127.0.0.1 grafana.local.devops-showcase.dev
-127.0.0.1 argocd.local.devops-showcase.dev
-127.0.0.1 prometheus.local.devops-showcase.dev
+127.0.0.1 buyerchat.local.stackup.dev
+127.0.0.1 grafana.local.stackup.dev
+127.0.0.1 argocd.local.stackup.dev
+127.0.0.1 prometheus.local.stackup.dev
 ```
 
 ---
@@ -229,7 +229,7 @@ up:
 
 ```makefile
 down:
-	kind delete cluster --name devops-showcase
+	kind delete cluster --name stackup
 ```
 
 The Makefile is the only thing a recruiter or reviewer needs to run to see the full platform come up. No manual intervention after `make up`.
@@ -349,7 +349,7 @@ Progress log: `docs/diagnostics/p3-week1/progress.md`
 ## Repo layout (as it exists after Day 3)
 
 ```
-devops-showcase/
+stackup/
 ├── kind/                          # Cluster declaration + Calico CNI
 │   ├── cluster.yaml               # Single-node kind cluster, extraPortMappings 80/443
 │   └── calico/                   # Tigera operator + Installation CR
@@ -463,7 +463,7 @@ Key rules that apply here:
 1. Read `docs/P3-SCOPE.md` first (scope contract)
 2. Read `docs/diagnostics/p3-week1/progress.md` (where we are)
 3. Read `docs/diagnostics/p3-week1/task_plan.md` Day N row (what to do next)
-4. Check `kind/cluster.yaml` context name: `kind-devops-showcase`
+4. Check `kind/cluster.yaml` context name: `kind-stackup`
 5. **Never edit buyerchat source** from this context
 
 ---
@@ -471,11 +471,11 @@ Key rules that apply here:
 ## Quickstart (Day 7 target)
 
 ```bash
-git clone https://github.com/ykstorm/devops-showcase.git
-cd devops-showcase
+git clone https://github.com/ykstorm/stackup.git
+cd stackup
 make up      # Full bring-up: cluster + Calico + platform Helm charts + ArgoCD app-of-apps + buyerchat workload
 # Add /etc/hosts entries (see above)
-# Open browser at buyerchat.local.devops-showcase.dev, grafana.local.devops-showcase.dev, argocd.local.devops-showcase.dev
+# Open browser at buyerchat.local.stackup.dev, grafana.local.stackup.dev, argocd.local.stackup.dev
 
 make down    # Clean teardown
 ```
