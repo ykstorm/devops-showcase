@@ -60,6 +60,8 @@ jobs:
 
       - name: Install ArgoCD via Helm
         run: |
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
           kubectl create namespace argocd || true
           helm upgrade --install argocd argo/argo-cd \
             --namespace argocd \
