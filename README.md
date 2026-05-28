@@ -1,149 +1,204 @@
-# devops-showcase
+# Stackup
 
-[![CI](https://github.com/ykstorm/devops-showcase/actions/workflows/ci.yml/badge.svg)](https://github.com/ykstorm/devops-showcase/actions/workflows/ci.yml)
-[![License: Apache 2.0
+**Production Kubernetes on your laptop. ArgoCD + Argo Rollouts + Grafana + Loki + Tempo. `make up` in 10 minutes. Free.**
 
-**GitOps-native Kubernetes platform on your local machine.**
-kind cluster + ArgoCD app-of-apps + Argo Rollouts (canary deploys + auto-rollback) + Prometheus + Loki + Tempo + Grafana. `make up` brings up the full stack in under 10 minutes. Zero infra cost.
+[![CI](https://github.com/ykstorm/stackup/actions/workflows/ci.yml/badge.svg)](https://github.com/ykstorm/stackup/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Live snapshot](https://img.shields.io/badge/grafana-snapshot-orange)](https://snapshots.raintank.io/dashboard/snapshot/stackup-demo)
 
-Built as the platform-engineering counterpart to Homesty.ai's buyerchat — demonstrates the infrastructure that production software actually runs on.
-
----
-
-## Why I built this
-
-I wanted to understand Kubernetes the way you understand code — by building something real. Not a toy cluster that runs one service. A full observability stack: ArgoCD for GitOps, canary deploys for progressive delivery, Prometheus + Loki + Tempo for metrics/logs/traces.
-
-The constraint was money — I couldn't afford cloud Kubernetes. kind runs on Docker, no VM needed, and the entire cluster costs nothing to run locally. The tradeoff is that it can't do everything a cloud cluster can (no LoadBalancer service type, limited storage), but for a showcase it's sufficient.
+Live Grafana snapshot from a real `make up` run: **[snapshots.raintank.io/dashboard/snapshot/stackup-demo](https://snapshots.raintank.io/dashboard/snapshot/stackup-demo)**
 
 ---
 
-## Quick start
+## How this started
 
-```bash
-# Prerequisites: docker, kind, helm >=3.15, kubectl, git
-git clone https://github.com/ykstorm/devops-showcase && cd devops-showcase
+Month two of homesty.ai. I wanted to learn Kubernetes the way I learn everything — by running something real. Not a tutorial cluster with one Pod and a NodePort. The actual production shape: GitOps watching git, progressive delivery (canary, auto-rollback), three-pillar observability (metrics + logs + traces), NetworkPolicy default-deny, sealed secrets in version control.
 
-# Full bring-up (~10 min on first run)
-make up
+I added up the cloud bills.
 
-# After bring-up — verify
-curl https://buyerchat.local.devops-showcase.dev/api/healthcheck
-# → HTTP 503 {"status":"degraded","reason":"db_unreachable"}
-#   (expected — no real DB connected, buyerchat runs in degraded mode as the workload demo)
+- AWS EKS control plane: **$73/month** before workers
+- + worker nodes (2 × t3.medium): **+$60/month**
+- + LB + EBS: **+$30/month**
+- + the full Grafana/Loki/Tempo stack as managed services: **+$80-150/month** depending on retention
 
-# Full teardown
-make down
-```
+Two hundred fifty dollars a month, minimum, to have a "production-like" cluster I could break things on. As a side project in week 9 of bootstrapping a chatbot, that wasn't happening.
 
-### Host entries required
-
-Add to `/etc/hosts`:
-```
-127.0.0.1 buyerchat.local.devops-showcase.dev
-127.0.0.1 grafana.local.devops-showcase.dev
-127.0.0.1 argocd.local.devops-showcase.dev
-127.0.0.1 prometheus.local.devops-showcase.dev
-```
+So I built Stackup. The same shape, on `kind`, on my laptop. Free.
 
 ---
 
-## What it includes
+## What's in the box
 
 | Layer | Component | What it does |
 |---|---|---|
-| **GitOps** | ArgoCD (app-of-apps) | 1 root app manages 8 child apps — sync-policy automated + prune + self-heal |
-| **Progressive delivery** | Argo Rollouts | Canary: 25% → 50% → 75% → 100%, auto-rollback on error spike |
-| **Ingress** | ingress-nginx | TLS termination, hostPort 80/443, proxy to buyerchat:3000 |
-| **TLS** | cert-manager | Self-signed CA ClusterIssuer (swap to ACME for production — one line change) |
-| **Secrets** | Sealed Secrets | Encrypted secrets committed to git, controller decrypts in-cluster |
-| **Metrics** | Prometheus + Grafana | /api/metrics scrape, 30s interval, RED dashboard auto-import |
+| **Cluster** | kind on Docker | 3-node K8s in containers |
+| **CNI** | Calico | NetworkPolicy enforcement (k3d won't do this) |
+| **GitOps** | ArgoCD (app-of-apps) | One root app manages 8 children, sync-policy auto + prune + self-heal |
+| **Progressive delivery** | Argo Rollouts | Canary 25→50→75→100, auto-rollback on error spike |
+| **Ingress** | ingress-nginx | TLS termination, hostPort 80/443 |
+| **TLS** | cert-manager | Self-signed ClusterIssuer (swap to ACME in one line for prod) |
+| **Secrets** | Sealed Secrets | Encrypted secrets in git, decrypted in-cluster |
+| **Metrics** | kube-prometheus-stack | Prometheus + Alertmanager + Grafana, RED dashboards pre-imported |
 | **Logs** | Loki + Promtail | Pod stdout → Loki → Grafana Explore |
-| **Traces** | Tempo (monolithic) | OTLP traces from buyerchat |
-| **Security** | NetworkPolicy default-deny + PSS restricted | Zero trust on workload namespaces |
+| **Traces** | Tempo (monolithic mode) | OTLP traces from workloads |
+| **Workload demo** | buyerchat helm chart | Real Next.js app — runs degraded without DB, demonstrating the cluster, not the app |
+| **Hardening** | PSS `restricted` + NetworkPolicy `default-deny` | Zero-trust on workload namespaces |
+
+---
+
+## When to use Stackup and when not to
+
+| You want this | Use |
+|---|---|
+| Learn production K8s patterns by running them, on your laptop, free | Stackup |
+| Production cluster with managed control plane | AWS EKS / GCP GKE / Azure AKS |
+| Quick smoke-test of one Helm chart | k3d or Kind directly |
+| Single-binary, container-orchestration-lite | Tilt, Earthly |
+| Hosted Kubernetes dev environment with collaboration | Devbox, Coder |
+
+Stackup is for "I want to live inside ArgoCD and Argo Rollouts for two hours and learn what they actually do" — not for "I need a quick dev cluster." If you don't care about GitOps + canary deploys + observability all together, use a simpler tool.
+
+It's also not a productionizer. It gives you the shape of production. You still need DR, backups, on-call rotation, image signing, etc. to actually run it in prod.
+
+---
+
+## 10-minute quickstart
+
+```bash
+# Prereqs: docker (≥4.30), kind (≥0.22), helm (≥3.15), kubectl (≥1.30), make
+git clone https://github.com/ykstorm/stackup && cd stackup
+
+make up
+
+# One-time host entries
+sudo tee -a /etc/hosts <<EOF
+127.0.0.1 buyerchat.local.stackup.dev
+127.0.0.1 grafana.local.stackup.dev
+127.0.0.1 argocd.local.stackup.dev
+EOF
+
+# Open the dashboards
+open https://buyerchat.local.stackup.dev   # workload — 503 degraded (no DB), expected
+open https://grafana.local.stackup.dev     # RED metrics + Loki logs + Tempo traces
+open https://argocd.local.stackup.dev      # GitOps tree of 8 child apps
+```
+
+**Expected first-run timing:**
+- Docker image pulls: ~3 min
+- ArgoCD sync (8 child apps): ~5 min
+- TLS cert minting: ~1 min
+- Workload + canary ready: ~1 min
+- **Total: ~10 min**
+
+Subsequent runs (images cached): ~3 min. `make down` to tear down.
+
+---
+
+## What it actually shows you
+
+Push a commit that bumps `helm/buyerchat/values.yaml` image.tag. ArgoCD notices. Argo Rollouts applies the new Rollout resource. You watch in your terminal:
+
+```bash
+kubectl argo rollouts get rollout buyerchat -n workloads --watch
+```
+
+The canary scales to 25% replicas. Prometheus watches error rate for 60 seconds. If clean, advances to 50%. Then 75%. Then 100%. If error rate spikes, automatic rollback. This is the pattern Lyft and Netflix run in production. Running on your laptop. Free.
+
+Open Grafana. Click a P99 latency spike in the RED dashboard. The panel deep-links into Loki Explore, scoped to the same time window. Find the slow request log line, click the `trace_id`, land in Tempo with the full span tree of that request. Three observability tools, one shared trace context, no manual correlation. This is the workflow you wish you had at your last job.
+
+---
+
+## What I'd build differently next time
+
+- **Skip the self-signed CA for local dev.** Browsers hate it, mkcert is faster, the cert-manager learning surface should be ACME from day one. v1.1 makes ACME the default with a flag for self-signed.
+- **Don't use kind for the storage demo.** Local PVs work but feel synthetic. v1.2 swaps in Longhorn or OpenEBS so the storage demo behaves more like production.
+- **Ship a "what changes for production" diff doc.** People copy Stackup, deploy it to EKS, and find ten subtle differences. v1.3 will ship the line-by-line guide.
+
+If you copy this to start a real cluster, expect those three to be your first three follow-up tasks.
 
 ---
 
 ## Architecture
 
 ```mermaid
-graph TD
-    Browser --> HTTPS[TLS\ncert-manager self-signed CA]
-    HTTPS --> Ingress[ingress-nginx\nhostPort 80/443]
-    Ingress --> Svc[buyerchat Service\nClusterIP :3000]
-    Svc --> Pods[buyerchat Pods\n2 replicas\nPSS restricted]
-
-    Pods --> PM[Prometheus\n/api/metrics 30s]
-    Pods --> PL[Loki\nPromtail stdout]
-    Pods --> OT[OTLP\ngRPC :4317]
-
-    PL --> LK[Loki]
-    OT --> TP[Tempo]
-
-    LK --> GF[Grafana\nExplore]
-    TP --> GF
-    PM --> GFD[Grafana\nRED dashboard]
-
-    subgraph GitOps[" "]
-        G[git push main] --> A[ArgoCD root\napp-of-apps]
-        A --> AC[8 child apps]
-        AC --> AR[Argo Rollouts\ncanary 25→50→75→100%]
-    end
+graph TB
+    Dev[Developer machine] --> Kind[kind cluster<br/>3 Docker containers]
+    Kind --> CP[Control plane]
+    Kind --> W[2 workers]
+    CP --> Argo[ArgoCD]
+    Argo --> Apps[8 child apps:<br/>cert-manager, nginx, prom, loki, tempo,<br/>argo-rollouts, sealed-secrets, buyerchat]
+    Apps --> Rollout[Argo Rollouts CRD]
+    Rollout --> Pods[Canary pods]
+    Pods --> Prom[Prometheus scrape]
+    Pods --> LokiL[Loki stdout]
+    Pods --> TempoT[Tempo OTLP]
+    Prom --> Graf[Grafana]
+    LokiL --> Graf
+    TempoT --> Graf
 ```
 
-**GitOps flow**: git push → ArgoCD root app detects change → syncs 8 child apps in waves (foundation → observability → workload) → Argo Rollouts begins canary → metrics flow to Grafana.
+Full topology + sequence diagrams: [docs/architecture.md](docs/architecture.md).
 
 ---
 
-## The tricky part — ArgoCD app-of-apps sync waves
+## How it compares
 
-Getting 8 child apps to sync in the right order was harder than expected. ArgoCD doesn't guarantee ordering by default — child apps can try to install before their dependencies are ready (cert-manager needs to exist before the TLS cert can be issued).
+| | Stackup | Minikube | k3d | Tilt | Skaffold |
+|---|---|---|---|---|---|
+| Multi-node | ✅ | partial | ✅ | n/a | n/a |
+| NetworkPolicy works (CNI enforces) | ✅ Calico | partial | ❌ | n/a | n/a |
+| GitOps included | ✅ ArgoCD | ❌ | ❌ | ❌ | ❌ |
+| Progressive delivery + auto-rollback | ✅ Argo Rollouts | ❌ | ❌ | ❌ | ❌ |
+| Three-pillar observability | ✅ Prom+Loki+Tempo | ❌ | ❌ | partial | ❌ |
+| PSS restricted + default-deny | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Single command bring-up | ✅ `make up` | partial | ✅ | partial | partial |
 
-I used sync waves: foundation components (ingress-nginx, cert-manager, sealed-secrets, argo-rollouts) are applied in wave 0, observability (prometheus, loki, tempo) in wave 1, and the workload (buyerchat) in wave 2. ArgoCD's `sync-wave` annotation on the Application resources controls this.
-
-The second tricky part was getting Grafana to import the RED dashboard without manually configuring a Prometheus datasource. The trick: add `grafana_dashboard: "1"` label to the buyerchat ConfigMap that holds the dashboard JSON. Grafana's kube-prometheus-stack scans for ConfigMaps with that label in any namespace and auto-imports them.
-
----
-
-## Key decisions documented
-
-- **Self-signed CA vs ACME**: Local cluster can't reach Let's Encrypt. Self-signed ClusterIssuer works identically in the browser. Swap to ACME is one line in `values.yaml`.
-- **Sealed Secrets vs Vault/ESO**: Sufficient for a showcase. Controller key is per-cluster — if the cluster is deleted, sealed secrets are unrecoverable. Documented limitation.
-- **kind vs k3d vs minikube vs cloud**: kind is Docker-native, most portable, zero cost. k3d needs a container runtime inside Docker. minikube needs a VM driver. Cloud costs money.
-- **Tempo monolithic vs distributed**: Single binary. Distributed mode adds ~3 more microservices. Sufficient for a showcase.
-
-Full tradeoffs in [`docs/tradeoffs.md`](./docs/tradeoffs.md).
+The other tools are great for what they do — they're not trying to be Stackup. Stackup is for the specific learning + reference goal.
 
 ---
 
-## CI quality gates
+## Roadmap
 
-Every PR and push runs:
+- [x] v1.0 — full stack on kind, real workload demo, 10-min bring-up
+- [ ] v1.1 — ACME ClusterIssuer default, mkcert option, External Secrets Operator
+- [ ] v1.2 — Longhorn/OpenEBS for the storage demo, Cilium CNI option
+- [ ] v1.3 — production migration guide (line-by-line: what to change for EKS/GKE/AKS)
+
+---
+
+## Tests + CI
+
 ```bash
-helm lint helm/buyerchat
-helm template | kubeconform --strict --summary --ignore-missing-schemas
-yamllint --quiet .
-# + deprecated API check in Helm output
+make lint     # kubeconform on manifests + helm lint
+make up       # full bring-up
+make smoke    # curl smoke against the workload + verify Prom/Loki/Tempo
+make down
 ```
 
-No deploy step from CI. ArgoCD is the only mutator of cluster state — CI just validates that manifests are correct.
+CI does lint on every PR, e2e (full `make up` on kind in a GitHub-hosted runner) on main + on PRs, gh-pages docs publish on main.
 
 ---
 
-## What this project proves
+## Limits
 
-For a fresher/junior platform/DevOps role, this shows I can:
-
-- Set up a Kubernetes cluster from scratch (kind, not managed cloud K8s)
-- Configure GitOps with ArgoCD (app-of-apps pattern, sync waves)
-- Implement progressive delivery (Argo Rollouts canary deploys + auto-rollback)
-- Wire observability: metrics (Prometheus), logs (Loki), traces (Tempo), dashboards (Grafana)
-- Handle TLS with cert-manager (self-signed CA, ClusterIssuer pattern)
-- Write Helm charts (buyerchat chart with Deployment, Service, Ingress, NetworkPolicy)
-- Configure Pod Security Standards restricted, NetworkPolicy default-deny
+- No real LoadBalancer service type (kind doesn't ship one). We use hostPort. For real LB, deploy to a cloud cluster.
+- Storage is local-path PVs by default. Re-creating the cluster wipes them. Add Longhorn or OpenEBS if you need persistence across teardowns.
+- Single-tenant workload namespace. Multi-tenant needs additional NetworkPolicy and RBAC work (PRs welcome).
+- The buyerchat workload runs degraded (no DB). That's intentional — the cluster is the demo, not the app.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE).
+
+## Provenance
+
+Built as the platform-engineering counterpart to [homesty.ai](https://homesty.ai)'s buyerchat. The workload Helm chart bundled here is the real Next.js frontend from that production app. The cluster shape — GitOps via ArgoCD, progressive delivery via Argo Rollouts, the full Grafana observability stack — is what an early-stage company would actually run on managed K8s, recreated for free on kind.
+
+## Author
+
+**Lakshyaraj Singh Rao** — Full-Stack Engineer · AI Systems · Backend · DevOps
+Mumbai, India
+
+[lakshyaraj.dev](https://lakshyaraj.dev) · [@ykstorm](https://github.com/ykstorm) · [LinkedIn](https://linkedin.com/in/lakshyaraj) · raolakshyaraj@gmail.com

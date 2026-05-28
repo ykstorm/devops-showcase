@@ -1,11 +1,11 @@
 .PHONY: up down smoke lint help
 
-KIND_CLUSTER := devops-showcase
+KIND_CLUSTER := stackup
 HELM_CHART := helm/buyerchat
 NAMESPACE := app
 
 help:
-	@echo "devops-showcase Makefile"
+	@echo "stackup Makefile"
 	@echo ""
 	@echo "  make up       Full bring-up: create kind cluster + install all platform components + buyerchat"
 	@echo "  make down     Tear down: delete kind cluster (clean)"
@@ -41,12 +41,12 @@ up:
 	@kubectl get pods -A --no-headers | grep -v Running | grep -v Completed && echo "All pods running ✓" || true
 	@echo ""
 	@echo "Add to /etc/hosts:"
-	@echo "  127.0.0.1 buyerchat.local.devops-showcase.dev"
-	@echo "  127.0.0.1 grafana.local.devops-showcase.dev"
-	@echo "  127.0.0.1 argocd.local.devops-showcase.dev"
-	@echo "  127.0.0.1 prometheus.local.devops-showcase.dev"
+	@echo "  127.0.0.1 buyerchat.local.stackup.dev"
+	@echo "  127.0.0.1 grafana.local.stackup.dev"
+	@echo "  127.0.0.1 argocd.local.stackup.dev"
+	@echo "  127.0.0.1 prometheus.local.stackup.dev"
 	@echo ""
-	@echo "Then: curl https://buyerchat.local.devops-showcase.dev/api/healthcheck"
+	@echo "Then: curl https://buyerchat.local.stackup.dev/api/healthcheck"
 
 down:
 	@echo "=== Deleting kind cluster ==="

@@ -6,7 +6,7 @@
   Deployment + Service + NetworkPolicies in dependency order.
 
 .DESCRIPTION
-  Idempotent. Re-running on an existing `devops-showcase` cluster is
+  Idempotent. Re-running on an existing `stackup` cluster is
   a no-op for cluster creation; manifest re-apply is harmless.
 
   Prereqs (verified by the precheck step):
@@ -20,7 +20,7 @@
   Pinned versions:
     Calico:           v3.28.2
     Buyerchat image:  ghcr.io/ykstorm/buyerchat:sha-8560cb3
-    Cluster name:     devops-showcase
+    Cluster name:     stackup
 #>
 
 # PS5.1 turns native-command stderr into ErrorRecord objects in the error
@@ -48,7 +48,7 @@ function Invoke-NativeCapture {
   }
 }
 
-$ClusterName       = 'devops-showcase'
+$ClusterName       = 'stackup'
 $CalicoVersion     = 'v3.28.2'
 $TigeraOperatorUrl = "https://raw.githubusercontent.com/projectcalico/calico/$CalicoVersion/manifests/tigera-operator.yaml"
 $BuyerchatImage    = 'ghcr.io/ykstorm/buyerchat:sha-8560cb3'

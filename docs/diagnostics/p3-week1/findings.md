@@ -14,9 +14,9 @@ either application-layer (n/a yet) or end-of-sprint (§16).
 
 ---
 
-## A. Current state of `devops-showcase/`
+## A. Current state of `stackup/`
 
-**Working directory:** `C:\Users\pc\Documents\devops-showcase`
+**Working directory:** `C:\Users\pc\Documents\stackup`
 
 **State at investigation start (pre any Day 1 writes):**
 
@@ -29,7 +29,7 @@ either application-layer (n/a yet) or end-of-sprint (§16).
 **State at end of Day 1 (after writes):**
 
 ```
-devops-showcase/
+stackup/
 ├── .gitignore
 ├── README.md
 └── docs/
@@ -202,7 +202,7 @@ start).
   `ci/` together. ArgoCD Applications point at directories within the
   same repo.
 - Standard and well-recognized pattern for portfolio scope. Splitting
-  into `devops-showcase-charts` + `devops-showcase-argocd` adds zero
+  into `stackup-charts` + `stackup-argocd` adds zero
   signal and doubles repo overhead.
 
 ### Q-6. App-of-apps vs ApplicationSet?
@@ -412,7 +412,7 @@ These are operator actions, not auto-installable from this sprint:
 5. (Optional) **Install `make` for Windows.** If absent, Day 7's
    `make up` ships a `scripts/up.sh` fallback.
 6. (Optional) **Verify hosts file write permission.** Day 6 wires
-   `*.local.devops-showcase.dev` entries to 127.0.0.1 via
+   `*.local.stackup.dev` entries to 127.0.0.1 via
    `C:\Windows\System32\drivers\etc\hosts`. Operator may prefer
    Acrylic DNS or `dnsmasq`-on-WSL — either works; `hosts` is the
    default.
@@ -422,7 +422,7 @@ These are operator actions, not auto-installable from this sprint:
 ## E. Repo skeleton plan (write order, by day)
 
 ```
-devops-showcase/
+stackup/
 ├── .gitignore                                       (Day 1) ← TODAY
 ├── README.md                                        (Day 1) ← TODAY
 ├── Makefile                                          (Day 7)

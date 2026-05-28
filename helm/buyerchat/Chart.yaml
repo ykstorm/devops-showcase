@@ -9,12 +9,12 @@ description: |-
 type: application
 version: 0.1.1
 appVersion: "sha-84c37cc"
-home: https://github.com/ykstorm/devops-showcase
+home: https://github.com/ykstorm/stackup
 sources:
-  - https://github.com/ykstorm/devops-showcase
+  - https://github.com/ykstorm/stackup
 keywords:
   - buyerchat
-  - devops-showcase
+  - stackup
   - p3
 maintainers:
   - name: ykstorm

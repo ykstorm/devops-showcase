@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-  Tear down the kind `devops-showcase` cluster.
+  Tear down the kind `stackup` cluster.
 
 .PARAMETER Force
   Skip the confirmation prompt. CI / scripted use.
@@ -21,7 +21,7 @@ param(
 # See up.ps1 header comment re: EAP and PS5.1 native-command semantics.
 $ErrorActionPreference = 'Continue'
 
-$ClusterName = 'devops-showcase'
+$ClusterName = 'stackup'
 
 Write-Host ""
 Write-Host "==> Tear down kind cluster '$ClusterName'" -ForegroundColor Cyan
