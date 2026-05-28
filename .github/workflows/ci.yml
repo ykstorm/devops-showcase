@@ -21,9 +21,12 @@ jobs:
 
       - name: Install kubeconform + helm
         run: |
-          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
-          sudo mv kubeconform /usr/local/bin/
-          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl -sSL -o /tmp/kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp/
+          chmod +x /tmp/kubeconform && sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
+          curl -fsSL -o /tmp/helm.tar.gz https://get.helm.sh/helm-v3.15.0-linux-amd64.tar.gz
+          tar -xzf /tmp/helm.tar.gz -C /tmp/
+          chmod +x /tmp/linux-amd64/helm && sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
 
       - name: Validate raw manifests
         run: find manifests/ -name '*.yaml' -print0 | xargs -0 kubeconform -strict -summary
@@ -43,11 +46,13 @@ jobs:
 
       - name: Install kind, kubectl, helm
         run: |
-          curl -fsSL -o ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
-          chmod +x ./kind && sudo mv ./kind /usr/local/bin/
-          curl -fsSL -o kubectl https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
-          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl -fsSL -o /tmp/kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+          chmod +x /tmp/kind && sudo mv /tmp/kind /usr/local/bin/kind
+          curl -fsSL -o /tmp/kubectl https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+          chmod +x /tmp/kubectl && sudo mv /tmp/kubectl /usr/local/bin/kubectl
+          curl -fsSL -o /tmp/helm.tar.gz https://get.helm.sh/helm-v3.15.0-linux-amd64.tar.gz
+          tar -xzf /tmp/helm.tar.gz -C /tmp/
+          chmod +x /tmp/linux-amd64/helm && sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
 
       - name: make up
         run: make up
