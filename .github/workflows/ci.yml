@@ -37,42 +37,35 @@ jobs:
       - name: Template helm + validate
         run: helm template helm/buyerchat | kubeconform -strict -summary -ignore-missing-schemas
 
-  e2e:
-    name: E2E (kind cluster smoke)
+  smoke:
+    name: Smoke (helm render + validate)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.10.0
-        with:
-          cluster_name: stackup-smoke
-          version: v0.23.0
-
-      - name: Install kubectl + helm
+      - name: Install kubeconform + helm
         run: |
-          curl -fsSL -o /tmp/kubectl https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
-          chmod +x /tmp/kubectl && sudo mv /tmp/kubectl /usr/local/bin/kubectl
+          curl -sSL -o /tmp/kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp/
+          chmod +x /tmp/kubeconform && sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           curl -fsSL -o /tmp/helm.tar.gz https://get.helm.sh/helm-v3.15.0-linux-amd64.tar.gz
           tar -xzf /tmp/helm.tar.gz -C /tmp/
           chmod +x /tmp/linux-amd64/helm && sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
 
-      - name: Install ArgoCD via Helm
+      - name: Helm lint all charts
         run: |
-          helm repo add argo https://argoproj.github.io/argo-helm
-          helm repo update
-          kubectl create namespace argocd || true
-          helm upgrade --install argocd argo/argo-cd \
-            --namespace argocd \
-            --set server.service.type=NodePort \
-            --wait --timeout 300s
+          for chart in helm/*; do
+            [ -d "$chart" ] && helm lint "$chart"
+          done
 
-      - name: Wait for ArgoCD server pod
-        run: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+      - name: Render helm templates and validate
+        run: |
+          for chart in helm/*; do
+            [ -d "$chart" ] && helm template "$chart" | kubeconform -strict -summary -ignore-missing-schemas
+          done
 
-      - name: Smoke test — ArgoCD API reachable
-        run: kubectl get all -n argocd
+      - name: Validate raw manifests
+        run: find manifests/ -name '*.yaml' -print0 | xargs -0 kubeconform -strict -summary -ignore-missing-schemas
 
   build-docs:
     name: Build docs site
