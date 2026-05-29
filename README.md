@@ -12,18 +12,7 @@ Live Grafana snapshot from a real `make up` run: **[snapshots.raintank.io/dashbo
 
 ## How this started
 
-Month two of homesty.ai. I wanted to learn Kubernetes the way I learn everything — by running something real. Not a tutorial cluster with one Pod and a NodePort. The actual production shape: GitOps watching git, progressive delivery (canary, auto-rollback), three-pillar observability (metrics + logs + traces), NetworkPolicy default-deny, sealed secrets in version control.
-
-I added up the cloud bills.
-
-- AWS EKS control plane: **$73/month** before workers
-- + worker nodes (2 × t3.medium): **+$60/month**
-- + LB + EBS: **+$30/month**
-- + the full Grafana/Loki/Tempo stack as managed services: **+$80-150/month** depending on retention
-
-Two hundred fifty dollars a month, minimum, to have a "production-like" cluster I could break things on. As a side project in week 9 of bootstrapping a chatbot, that wasn't happening.
-
-So I built Stackup. The same shape, on `kind`, on my laptop. Free.
+Production-grade Kubernetes is expensive — $200+/month minimum on managed cloud just to learn. Stackup runs the full production stack (ArgoCD + Argo Rollouts + Prometheus + Loki + Tempo + Grafana + Sealed Secrets) on kind, on your laptop, for free.
 
 ---
 
@@ -194,7 +183,7 @@ Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## Provenance
 
-Built as the platform-engineering counterpart to [homesty.ai](https://homesty.ai)'s buyerchat. The workload Helm chart bundled here is the real Next.js frontend from that production app. The cluster shape — GitOps via ArgoCD, progressive delivery via Argo Rollouts, the full Grafana observability stack — is what an early-stage company would actually run on managed K8s, recreated for free on kind.
+Built as the platform-engineering counterpart to buyerchat. The cluster shape — GitOps via ArgoCD, progressive delivery via Argo Rollouts, the full Grafana observability stack — is what an early-stage company would actually run on managed K8s, recreated for free on kind.
 
 ## Author
 
