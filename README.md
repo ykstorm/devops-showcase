@@ -180,14 +180,3 @@ CI does lint on every PR, e2e (full `make up` on kind in a GitHub-hosted runner)
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
-
-## Provenance
-
-Built as the platform-engineering counterpart to buyerchat. The cluster shape — GitOps via ArgoCD, progressive delivery via Argo Rollouts, the full Grafana observability stack — is what an early-stage company would actually run on managed K8s, recreated for free on kind.
-
-## Author
-
-**Lakshyaraj Singh Rao** — Full-Stack Engineer · AI Systems · Backend · DevOps
-Mumbai, India
-
-[lakshyaraj.dev](https://lakshyaraj.dev) · [@ykstorm](https://github.com/ykstorm) · [LinkedIn](https://linkedin.com/in/lakshyaraj) · raolakshyaraj@gmail.com
