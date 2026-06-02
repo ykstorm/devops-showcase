@@ -9,7 +9,7 @@
 
 ## Why Stackup
 
-Production-grade Kubernetes costs $200+/month minimum on managed cloud — just to learn. Stackup runs the full production stack on kind, on your laptop, for free.
+Managed Kubernetes costs $200+/month minimum on cloud providers. Stackup runs the full production stack on kind, on your laptop, for free.
 
 What "full production stack" means: a real ArgoCD app-of-apps with 8 child applications, Argo Rollouts canary progressive delivery, Prometheus + Loki + Tempo observability, cert-manager TLS, Sealed Secrets encrypted in git, Calico NetworkPolicy enforcement, and Pod Security Standards `restricted` on every workload namespace.
 
