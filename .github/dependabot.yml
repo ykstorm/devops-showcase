@@ -8,7 +8,7 @@ updates:
       - "dependencies"
 
   - package-ecosystem: "helm"
-    directory: "/helm"
+    directory: "/helm/buyerchat"
     schedule:
       interval: "weekly"
     labels:
