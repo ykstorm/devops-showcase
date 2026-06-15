@@ -97,6 +97,8 @@ graph TD
 
 For full topology + sequence diagrams, see [docs/architecture.md](docs/architecture.md).
 
+A static documentation site (overview, getting started, architecture, GitOps + canary) is built from `docs-site/` and published to GitHub Pages on merge to `main`.
+
 ---
 
 ## Makefile targets

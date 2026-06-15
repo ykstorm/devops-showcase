@@ -109,8 +109,6 @@ jobs:
   build-docs:
     name: Build docs site
     runs-on: ubuntu-latest
-    # GATED: docs-site/ directory does not exist yet. Uncomment + create docs-site/ before re-enabling.
-    if: false
     steps:
       - uses: actions/checkout@v4
       - name: Build static site
