@@ -20,7 +20,7 @@ export default function Home() {
       <p>
         A kind-based cluster wired with a real ArgoCD app-of-apps over six child
         applications, Argo Rollouts canary progressive delivery, the
-        kube-prometheus-stack for metrics, Loki for logs, Tempo for traces,
+        kube-prometheus-stack for metrics (Prometheus, Alertmanager, Grafana),
         cert-manager TLS, Sealed Secrets encrypted in git, and Calico
         NetworkPolicy enforcement. Pod Security Standards <code>restricted</code>{' '}
         applies on every workload namespace.
@@ -77,22 +77,16 @@ export default function Home() {
             <td>Prometheus, Alertmanager, Grafana with RED dashboards</td>
           </tr>
           <tr>
-            <td>Logs</td>
-            <td>Loki + Promtail</td>
-            <td>Pod stdout into Loki, viewed in Grafana</td>
-          </tr>
-          <tr>
-            <td>Traces</td>
-            <td>Tempo</td>
-            <td>OTLP traces from workloads</td>
-          </tr>
-          <tr>
             <td>Workload</td>
             <td>buyerchat Helm chart</td>
             <td>Next.js demo app that exercises the cluster</td>
           </tr>
         </tbody>
       </table>
+      <p>
+        On the roadmap, not installed yet: logs (Loki + Promtail) and traces
+        (Tempo) for the full three-signal view in Grafana.
+      </p>
 
       <h2>Start here</h2>
       <div className="cards">

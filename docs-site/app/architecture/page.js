@@ -32,7 +32,6 @@ export default function Architecture() {
         <li>ingress-nginx — ingress and TLS termination</li>
         <li>sealed-secrets — in-cluster secret decryption</li>
         <li>kube-prometheus-stack — Prometheus, Alertmanager, Grafana</li>
-        <li>Loki + Promtail / Tempo — logs and traces</li>
         <li>argo-rollouts — the canary controller</li>
         <li>buyerchat — the demo workload</li>
       </ul>
@@ -44,8 +43,8 @@ export default function Architecture() {
 
       <h2>Observability flow</h2>
       <p>
-        Each workload pod feeds three signals into the stack, and Grafana ties
-        them together:
+        kube-prometheus-stack installs Prometheus, Alertmanager, and Grafana.
+        Metrics flow into Prometheus and render as RED dashboards in Grafana:
       </p>
       <table>
         <thead>
@@ -61,21 +60,15 @@ export default function Architecture() {
             <td>/api/metrics scraped every 30s</td>
             <td>Prometheus</td>
           </tr>
-          <tr>
-            <td>Logs</td>
-            <td>Pod stdout (JSON), tailed by Promtail</td>
-            <td>Loki</td>
-          </tr>
-          <tr>
-            <td>Traces</td>
-            <td>OTLP gRPC on :4317</td>
-            <td>Tempo</td>
-          </tr>
         </tbody>
       </table>
+
+      <h3>Roadmap</h3>
       <p>
-        From a Grafana panel you can drill into the matching logs, and from a
-        log line you can jump to the trace by its trace_id.
+        Logs and traces (Loki + Promtail, Tempo) are on the roadmap — not
+        installed yet. Once they are wired in, a Grafana panel would let you
+        drill from a metric into the matching logs, and from a log line jump to
+        the trace by its trace_id.
       </p>
 
       <h2>Security posture</h2>

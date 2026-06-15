@@ -43,8 +43,9 @@ make up`}</code>
           response is expected.
         </li>
         <li>
-          <strong>grafana.local.stackup.dev</strong> — RED metrics, Loki logs,
-          and Tempo traces in one place.
+          <strong>grafana.local.stackup.dev</strong> — RED metrics from
+          Prometheus. Logs and traces (Loki, Tempo) are on the roadmap, not
+          installed yet.
         </li>
         <li>
           <strong>argocd.local.stackup.dev</strong> — the GitOps tree of six
