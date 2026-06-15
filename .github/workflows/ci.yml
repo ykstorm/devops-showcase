@@ -109,6 +109,8 @@ jobs:
   build-docs:
     name: Build docs site
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Build static site
@@ -116,7 +118,10 @@ jobs:
         run: |
           npm ci
           npm run build
+      # Build runs on every push/PR (validates the site). Deploy to gh-pages
+      # only on push to the default branch — PRs build but don't publish.
       - uses: peaceiris/actions-gh-pages@v4
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs-site/out
