@@ -17,7 +17,7 @@ jobs:
     name: Lint manifests + helm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install kubeconform + helm
         run: |
@@ -41,7 +41,7 @@ jobs:
     name: Smoke (helm render + validate)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install kubeconform + helm
         run: |
@@ -71,7 +71,7 @@ jobs:
     name: GitOps (rollout + app-of-apps render)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install kubeconform + helm
         run: |
@@ -112,7 +112,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build static site
         working-directory: docs-site
         run: |
