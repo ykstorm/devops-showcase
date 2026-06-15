@@ -87,6 +87,10 @@ jobs:
         # the dependency before lint/template. -ignore-missing-schemas
         # because the upstream charts ship CRDs (Rollout, Application).
         run: |
+          # Both wrapper charts pin upstream charts from the argo-helm repo;
+          # register it so `helm dependency build` can resolve them.
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
           for chart in infra/argo-rollouts infra/argocd; do
             helm dependency build "$chart"
             helm lint "$chart"
