@@ -10,9 +10,27 @@ image:
 
 replicaCount: 2
 
+# Progressive delivery. When rollout.enabled is false (the default), the
+# chart renders a plain Deployment using the `strategy` block below. When
+# true (set in values.dev.yaml for the kind cluster), the chart renders an
+# Argo Rollout with a canary strategy + AnalysisTemplate instead, and the
+# Deployment is suppressed — exactly one workload object exists either way.
+rollout:
+  enabled: false
+  analysis:
+    # The kube-prometheus-stack `kps` release exposes Prometheus here.
+    prometheusAddress: http://kps-kube-prometheus-stack-prometheus.monitoring:9090
+    interval: 30s
+    count: 3
+    failureLimit: 1
+    # successCondition is `result[0] >= successThreshold`. With the
+    # current up-based query (see analysis-template.yaml TODO), 0.95 means
+    # at least 95% of buyerchat targets must be scrapeable.
+    successThreshold: "0.95"
+
 # Deployment update strategy. RollingUpdate is fine here (no hostPort
 # contention — the workload runs behind a Service, not directly on
-# host ports).
+# host ports). Only used when rollout.enabled is false.
 strategy:
   type: RollingUpdate
   rollingUpdate:

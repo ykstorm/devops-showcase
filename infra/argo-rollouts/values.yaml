@@ -1,0 +1,26 @@
+# Argo Rollouts values for the showcase cluster.
+#
+# Values for the upstream chart are nested under its dependency alias
+# `argo-rollouts` (the dependency name in Chart.yaml).
+#
+# Kept minimal: the controller is all the buyerchat canary needs. The
+# kubectl-plugin dashboard is a separate client-side tool (installed on
+# the operator's laptop, not in-cluster) and is not enabled here.
+
+argo-rollouts:
+  # Controller only. The dashboard pod is off by default upstream; we
+  # keep it off — the `kubectl argo rollouts` plugin reads the Rollout
+  # CRs directly and needs no in-cluster dashboard.
+  dashboard:
+    enabled: false
+
+  controller:
+    # Single replica is enough on a single-node kind cluster.
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi

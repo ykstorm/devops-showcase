@@ -11,6 +11,12 @@
 
 replicaCount: 1
 
+# Render an Argo Rollout (canary) instead of a plain Deployment on the
+# kind cluster, so `kubectl argo rollouts get rollout buyerchat -n app`
+# and the documented canary flow work end to end.
+rollout:
+  enabled: true
+
 resources:
   requests:
     cpu: "50m"

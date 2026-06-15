@@ -1,0 +1,35 @@
+# app-of-apps root.
+#
+# A single Application that points at argocd/apps/ in this repo. Every
+# file there is itself an Application (one per platform component), so
+# ArgoCD reconciling `root` pulls in the whole tree. Apply it once after
+# ArgoCD is up:
+#
+#   kubectl apply -f argocd/root-app.yaml
+#
+# automated sync keeps the children in step with main; prune removes
+# resources dropped from git; selfHeal reverts out-of-band cluster edits.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: stackup
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ykstorm/stackup
+    path: argocd/apps
+    targetRevision: main
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

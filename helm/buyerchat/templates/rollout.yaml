@@ -1,9 +1,15 @@
-{{- if not .Values.rollout.enabled }}
-# Plain Deployment — the default path. When .Values.rollout.enabled is
-# true (values.dev.yaml), rollout.yaml renders an Argo Rollout instead and
-# this file produces nothing, so exactly one workload object exists.
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.rollout.enabled }}
+# Argo Rollout — the canary equivalent of deployment.yaml. Exactly one of
+# Deployment/Rollout renders: this file is gated on .Values.rollout.enabled,
+# deployment.yaml on `not .Values.rollout.enabled`.
+#
+# MAINTENANCE: the pod template below is a verbatim copy of the one in
+# deployment.yaml (same containers, securityContext, volumeMounts, the
+# tcpSocket probes + their rationale, volumes, automountServiceAccountToken).
+# Any change to the buyerchat pod spec must be made in BOTH files until the
+# template is extracted into a shared _helpers.tpl named template.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include "buyerchat.fullname" . }}
   labels:
@@ -12,7 +18,18 @@ spec:
   replicas: {{ .Values.replicaCount }}
   revisionHistoryLimit: 3
   strategy:
-    {{- toYaml .Values.strategy | nindent 4 }}
+    canary:
+      steps:
+        - setWeight: 25
+        - pause: { duration: 30s }
+        - analysis:
+            templates:
+              - templateName: {{ include "buyerchat.fullname" . }}-success-rate
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - setWeight: 75
+        - pause: { duration: 30s }
+        - setWeight: 100
   selector:
     matchLabels:
       {{- include "buyerchat.selectorLabels" . | nindent 6 }}

@@ -174,19 +174,22 @@ Write-OK "Image side-loaded; ImagePullPolicy=IfNotPresent will not hit the regis
 # helm/buyerchat/. Only 00-namespace.yaml remains here, because the
 # chart doesn't manage the Namespace (PSS labels are an
 # infrastructure-level concern, not a workload concern, and the chart
-# may eventually be installed into multiple-tenant namespaces). The
-# helm install steps for the buyerchat workload are operator-driven
-# until Day 6 wires ArgoCD to take over.
+# may eventually be installed into multiple-tenant namespaces).
+#
+# GitOps takeover (Day 6): ArgoCD and Argo Rollouts are now installed
+# from infra/argocd and infra/argo-rollouts, and argocd/root-app.yaml
+# registers the app-of-apps that reconciles every component from git.
+# The bootstrap helm installs below get the cluster to a state where
+# ArgoCD can take over; from then on git is the source of truth.
 Write-Step "Namespace - kubectl apply -f $ManifestsDir"
 & kubectl apply -f $ManifestsDir
 if ($LASTEXITCODE -ne 0) { throw "kubectl apply on buyerchat manifests failed" }
 Write-OK 'buyerchat namespace applied (with restricted-PSS labels)'
 
 # ---------------------------------------------------------------------
-# Day-3 follow-up instructions (helm installs are operator-driven
-# until Day 6 GitOps takeover)
+# Follow-up instructions: bootstrap the platform, then hand off to GitOps
 # ---------------------------------------------------------------------
-Write-Step 'Day-3 follow-ups (run after this script completes)'
+Write-Step 'Follow-ups (run after this script completes)'
 Write-Host ''
 Write-Host '  Foundation infra (~3 min total):' -ForegroundColor White
 Write-Host ''
@@ -204,15 +207,33 @@ Write-Host '    kubectl apply -f infra/cert-manager/clusterissuer-selfsigned.yam
 Write-Host '    helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \'
 Write-Host '      -n kube-system --wait'
 Write-Host ''
+Write-Host '  Argo Rollouts + ArgoCD (the GitOps control plane):' -ForegroundColor White
+Write-Host ''
+Write-Host '    # Wrapper charts under infra/ pin the upstream chart as a'
+Write-Host '    # dependency, so build it first, then install.'
+Write-Host '    helm dependency build infra/argo-rollouts'
+Write-Host '    helm upgrade --install argo-rollouts infra/argo-rollouts \'
+Write-Host '      -n argo-rollouts --create-namespace --wait'
+Write-Host '    helm dependency build infra/argocd'
+Write-Host '    helm upgrade --install argocd infra/argocd \'
+Write-Host '      -n argocd --create-namespace --wait'
+Write-Host ''
 Write-Host '  Re-seal buyerchat-env (controller key is per-cluster — see' -ForegroundColor White
 Write-Host '  infra/sealed-secrets/README.md):' -ForegroundColor White
 Write-Host ''
 Write-Host '    # Recipe in helm/buyerchat/templates/sealed-secret.yaml leading comment.'
 Write-Host ''
-Write-Host '  Workload:' -ForegroundColor White
+Write-Host '  Workload + GitOps takeover:' -ForegroundColor White
 Write-Host ''
 Write-Host '    helm upgrade --install buyerchat ./helm/buyerchat \'
-Write-Host '      -f helm/buyerchat/values.dev.yaml -n buyerchat --wait'
+Write-Host '      -f helm/buyerchat/values.dev.yaml -n app --wait'
+Write-Host '    # Register the app-of-apps root; ArgoCD reconciles every'
+Write-Host '    # component from git from here on.'
+Write-Host '    kubectl apply -f argocd/root-app.yaml'
+Write-Host ''
+Write-Host '  Watch the canary:' -ForegroundColor White
+Write-Host ''
+Write-Host '    kubectl argo rollouts get rollout buyerchat -n app --watch'
 Write-Host ''
 Write-Host '  Smoke test:' -ForegroundColor White
 Write-Host ''

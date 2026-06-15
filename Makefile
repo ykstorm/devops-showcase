@@ -1,4 +1,4 @@
-.PHONY: up down smoke lint help
+.PHONY: up down smoke lint rollout-status help
 
 KIND_CLUSTER := stackup
 HELM_CHART := helm/buyerchat
@@ -7,10 +7,11 @@ NAMESPACE := app
 help:
 	@echo "stackup Makefile"
 	@echo ""
-	@echo "  make up       Full bring-up: create kind cluster + install all platform components + buyerchat"
-	@echo "  make down     Tear down: delete kind cluster (clean)"
-	@echo "  make smoke    Run smoke tests (requires cluster up)"
-	@echo "  make lint     Lint all YAML files + Helm charts"
+	@echo "  make up             Full bring-up: create kind cluster + install all platform components + buyerchat"
+	@echo "  make down           Tear down: delete kind cluster (clean)"
+	@echo "  make smoke          Run smoke tests (requires cluster up)"
+	@echo "  make lint           Lint all YAML files + Helm charts"
+	@echo "  make rollout-status Watch the buyerchat Argo Rollout canary progress"
 	@echo ""
 	@echo "Prerequisites: docker, kind, helm >=3.15, kubectl, git"
 
@@ -30,11 +31,27 @@ up:
 		helm upgrade --install --create-namespace --namespace $$(basename $$chart) $$chart $$chart --timeout 120s --wait --debug 2>&1 | tail -3 || true; \
 	done
 
+	@echo "=== Installing Argo Rollouts + ArgoCD ==="
+	@# Wrapper charts (Chart.yaml dependency on the upstream chart) — pull
+	@# the pinned dependency, then install. argo-rollouts first so the
+	@# Rollout CRDs exist before buyerchat renders a Rollout; argocd last.
+	@for chart in infra/argo-rollouts infra/argocd; do \
+		echo "  Installing $$chart..."; \
+		helm dependency build $$chart >/dev/null 2>&1 || true; \
+		helm upgrade --install --create-namespace --namespace $$(basename $$chart) $$chart $$chart --timeout 300s --wait --debug 2>&1 | tail -3 || true; \
+	done
+
 	@echo "=== Installing buyerchat Helm chart ==="
 	helm upgrade --install buyerchat $(HELM_CHART) \
 		--namespace $(NAMESPACE) --create-namespace \
 		--values $(HELM_CHART)/values.dev.yaml \
 		--timeout 180s --wait
+
+	@echo "=== Registering the ArgoCD app-of-apps root ==="
+	@# From here on ArgoCD reconciles every component from git (automated
+	@# sync + prune + self-heal). The helm installs above bootstrap the
+	@# cluster on a clean machine; root-app.yaml is the GitOps takeover.
+	kubectl apply -f argocd/root-app.yaml
 
 	@echo ""
 	@echo "=== Cluster ready ==="
@@ -67,3 +84,6 @@ lint:
 	@echo "=== Helm lint ==="
 	@helm lint $(HELM_CHART) --quiet && echo "✓ helm lint passed" || echo "✗ helm lint failed"
 	@helm template buyerchat $(HELM_CHART) > /dev/null 2>&1 && echo "✓ helm template passed" || echo "✗ helm template failed"
+
+rollout-status:
+	kubectl argo rollouts get rollout buyerchat -n $(NAMESPACE) --watch

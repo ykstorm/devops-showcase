@@ -1,0 +1,30 @@
+# Wrapper chart for Argo Rollouts.
+#
+# The other infra/* overlays (ingress-nginx, cert-manager, sealed-secrets,
+# kube-prometheus-stack) are values-only and installed by name from the
+# upstream repo (see each dir's README). This one carries a Chart.yaml
+# dependencies block instead, for two reasons:
+#   1. `helm lint infra/argo-rollouts` is a CI gate, and lint needs a
+#      Chart.yaml to run.
+#   2. The ArgoCD app-of-apps points an Application at this directory; a
+#      self-contained chart renders without an out-of-band `helm repo add`.
+# The upstream READMEs already anticipated this "Chart.yaml shim" path.
+apiVersion: v2
+name: argo-rollouts
+description: |-
+  Argo Rollouts controller for the showcase cluster. Installs the canary
+  controller that drives the buyerchat Rollout's progressive-delivery
+  steps and evaluates its AnalysisTemplate.
+type: application
+version: 0.1.0
+appVersion: "1.9.0"
+home: https://github.com/ykstorm/stackup
+sources:
+  - https://github.com/ykstorm/stackup
+maintainers:
+  - name: ykstorm
+dependencies:
+  # Pinned, not floated. Bump deliberately and re-run `helm dependency build`.
+  - name: argo-rollouts
+    version: 2.41.0
+    repository: https://argoproj.github.io/argo-helm
