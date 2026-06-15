@@ -6,3 +6,9 @@ dist/
 coverage/
 *.tmp
 kubeconform-cache/
+
+# Vendored Helm chart dependencies (pulled by `helm dependency build`).
+# Chart.lock is committed to pin exact versions; the .tgz archives are
+# build artifacts and re-fetched in CI.
+infra/*/charts/
+helm/*/charts/

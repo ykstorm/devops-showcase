@@ -11,7 +11,7 @@
 
 Managed Kubernetes costs $200+/month minimum on cloud providers. Stackup runs the full production stack on kind, on your laptop, for free.
 
-What "full production stack" means: a real ArgoCD app-of-apps with 8 child applications, Argo Rollouts canary progressive delivery, Prometheus + Loki + Tempo observability, cert-manager TLS, Sealed Secrets encrypted in git, Calico NetworkPolicy enforcement, and Pod Security Standards `restricted` on every workload namespace.
+What "full production stack" means: a real ArgoCD app-of-apps with 6 child applications, Argo Rollouts canary progressive delivery, Prometheus + Grafana observability, cert-manager TLS, Sealed Secrets encrypted in git, Calico NetworkPolicy enforcement, and Pod Security Standards `restricted` on every workload namespace.
 
 The buyerchat workload deliberately runs degraded (no DB). That's intentional. The cluster is the demo — not the app.
 
@@ -23,8 +23,8 @@ The buyerchat workload deliberately runs degraded (no DB). That's intentional. T
 |---|---|---|
 | **Cluster** | kind on Docker | 3-node K8s in containers |
 | **CNI** | Calico | NetworkPolicy enforcement |
-| **GitOps** | ArgoCD (app-of-apps) | One root app manages 8 children; automated sync + prune + self-heal |
-| **Progressive delivery** | Argo Rollouts | Canary 25→50→75→100%, auto-rollback on error spike |
+| **GitOps** | ArgoCD (app-of-apps) | One root app manages 6 children; automated sync + prune + self-heal |
+| **Progressive delivery** | Argo Rollouts | Canary 25→50→75→100%, analysis gate at 25% with auto-rollback |
 | **Ingress** | ingress-nginx | TLS termination, hostPort 80/443 |
 | **TLS** | cert-manager | Self-signed ClusterIssuer (swap to ACME in one line for prod) |
 | **Secrets** | Sealed Secrets | Encrypted secrets in git, decrypted in-cluster |
@@ -56,19 +56,22 @@ Then open:
 
 - **[https://buyerchat.local.stackup.dev](https://buyerchat.local.stackup.dev)** — workload, returns 503 degraded (no DB — expected)
 - **[https://grafana.local.stackup.dev](https://grafana.local.stackup.dev)** — RED metrics + Loki logs + Tempo traces
-- **[https://argocd.local.stackup.dev](https://argocd.local.stackup.dev)** — GitOps tree of 8 child apps
+- **[https://argocd.local.stackup.dev](https://argocd.local.stackup.dev)** — GitOps tree of 6 child apps
 
 ---
 
 ## What it actually shows you
 
-Push a commit that bumps `helm/buyerchat/values.yaml` image.tag. ArgoCD notices. Argo Rollouts applies the new Rollout resource. Watch:
+Push a commit that bumps `helm/buyerchat/values.yaml` image.tag. ArgoCD notices and syncs. Argo Rollouts applies the new Rollout revision. Watch it advance:
 
 ```bash
-kubectl argo rollouts get rollout buyerchat -n app --watch
+make rollout-status
+# same as: kubectl argo rollouts get rollout buyerchat -n app --watch
 ```
 
-The canary scales to 25% replicas. Prometheus watches error rate for 60 seconds. If clean, advances to 50%. Then 75%. Then 100%. If error rate spikes, automatic rollback. This is the pattern Lyft and Netflix run in production. Running on your laptop. Free.
+The canary shifts 25% of traffic to the new version, pauses, then runs an analysis step: an `AnalysisTemplate` queries Prometheus three times over 90 seconds. If the success condition holds, the rollout advances to 50%, then 75%, then 100%. If the analysis fails, Argo Rollouts aborts and rolls back to the previous revision. This is the canary pattern teams run in production, on your laptop, for free.
+
+The current analysis query is a conservative liveness check (is the canary up and being scraped). Once the buyerchat image exports request counters on `/api/metrics`, swap it for a real success-rate ratio — the template carries a `TODO` marking the one line to change.
 
 ---
 
@@ -81,7 +84,7 @@ graph TD
     Kind --> W1[Worker 1]
     Kind --> W2[Worker 2]
     CP --> Argo[ArgoCD]
-    Argo --> Apps[8 child apps]
+    Argo --> Apps[6 child apps]
     Apps --> Rollout[Argo Rollouts CRD]
     Rollout --> Pods[Canary pods]
     Pods --> Prom[Prometheus]
@@ -100,10 +103,11 @@ For full topology + sequence diagrams, see [docs/architecture.md](docs/architect
 
 ```bash
 make help     # Show all targets
-make up       # Full bring-up: create cluster + install platform + buyerchat
-make down     # Tear down kind cluster (clean)
-make smoke    # Run smoke tests (requires cluster up)
-make lint     # Lint all YAML + Helm charts
+make up             # Full bring-up: create cluster + install platform + buyerchat
+make down           # Tear down kind cluster (clean)
+make smoke          # Run smoke tests (requires cluster up)
+make lint           # Lint all YAML + Helm charts
+make rollout-status # Watch the buyerchat Argo Rollout canary progress
 ```
 
 ---
