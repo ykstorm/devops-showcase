@@ -1,6 +1,6 @@
 # Stackup
 
-**Kubernetes on your laptop. ArgoCD + Argo Rollouts + Prometheus + Loki + Tempo + Grafana. `make up` in 10 minutes. Free.**
+**Kubernetes on your laptop. ArgoCD + Argo Rollouts + Prometheus + Grafana. `make up` in 10 minutes. Free.**
 
 [![CI](https://github.com/ykstorm/stackup/actions/workflows/ci.yml/badge.svg)](https://github.com/ykstorm/stackup/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -29,10 +29,15 @@ The buyerchat workload deliberately runs degraded (no DB). That's intentional. T
 | **TLS** | cert-manager | Self-signed ClusterIssuer (swap to ACME in one line for prod) |
 | **Secrets** | Sealed Secrets | Encrypted secrets in git, decrypted in-cluster |
 | **Metrics** | kube-prometheus-stack | Prometheus + Alertmanager + Grafana, RED dashboards pre-imported |
-| **Logs** | Loki + Promtail | Pod stdout → Loki → Grafana Explore |
-| **Traces** | Tempo (monolithic) | OTLP traces from workloads |
 | **Workload demo** | buyerchat Helm chart | Next.js app — demonstrates the cluster, not a production app |
 | **Hardening** | PSS `restricted` + NetworkPolicy `default-deny` | Zero-trust on workload namespaces |
+
+### Roadmap (not installed yet)
+
+| Layer | Component | What it would do |
+|---|---|---|
+| **Logs** | Loki + Promtail | Pod stdout → Loki → Grafana Explore |
+| **Traces** | Tempo | OTLP traces from workloads |
 
 ---
 
@@ -55,7 +60,7 @@ Add to `/etc/hosts` (Windows: `C:\Windows\System32\drivers\etc\hosts`):
 Then open:
 
 - **[https://buyerchat.local.stackup.dev](https://buyerchat.local.stackup.dev)** — workload, returns 503 degraded (no DB — expected)
-- **[https://grafana.local.stackup.dev](https://grafana.local.stackup.dev)** — RED metrics + Loki logs + Tempo traces
+- **[https://grafana.local.stackup.dev](https://grafana.local.stackup.dev)** — RED metrics from Prometheus (logs/traces are roadmap)
 - **[https://argocd.local.stackup.dev](https://argocd.local.stackup.dev)** — GitOps tree of 6 child apps
 
 ---
@@ -88,14 +93,12 @@ graph TD
     Apps --> Rollout[Argo Rollouts CRD]
     Rollout --> Pods[Canary pods]
     Pods --> Prom[Prometheus]
-    Pods --> LokiL[Loki]
-    Pods --> TempoT[Tempo]
     Prom --> Graf[Grafana]
-    LokiL --> Graf
-    TempoT --> Graf
 ```
 
 For full topology + sequence diagrams, see [docs/architecture.md](docs/architecture.md).
+
+A static documentation site (overview, getting started, architecture, GitOps + canary) is built from `docs-site/` and published to GitHub Pages on merge to `main`.
 
 ---
 
