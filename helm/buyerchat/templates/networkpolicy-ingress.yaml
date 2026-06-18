@@ -1,10 +1,10 @@
 {{- if .Values.networkPolicy.enabled -}}
 # Ingress allow rules for the buyerchat pod.
 #
-# Day-2 had a single allow rule (same-namespace pods → buyerchat:3000)
+# had a single allow rule (same-namespace pods → buyerchat:3000)
 # because no Ingress controller existed yet — port-forward via the
 # apiserver was the only access path, and that doesn't traverse pod-
-# to-pod networking. With Day-3 ingress-nginx in front, requests
+# to-pod networking. With ingress-nginx in front, requests
 # arrive from the controller's pod (in the `ingress-nginx` namespace),
 # which is a *different* namespace than buyerchat — the same-ns
 # selector would deny those flows.
@@ -13,8 +13,8 @@
 #   1. From any pod in the ingress-nginx namespace
 #      (selected via the chart-configurable namespace label).
 #   2. From any pod in the buyerchat namespace itself
-#      (preserved from the Day-2 manifest).
-#   3. (Day-4) From any pod in the monitoring namespace, gated on
+#      (preserved from the manifest).
+#   3. (an earlier iteration) From any pod in the monitoring namespace, gated on
 #      .Values.serviceMonitor.enabled. Lets the kube-prometheus-stack
 #      Prometheus pod reach buyerchat:3000 for /api/metrics scraping;
 #      without this rule the chart's default-deny would silently swallow

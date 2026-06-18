@@ -19,7 +19,7 @@ helm upgrade --install kps prometheus-community/kube-prometheus-stack \
 Pinned to the chart version on the Helm repo at install time
 (`84.5.0` / app `v0.90.1` at the time of writing). The release name
 **`kps`** is load-bearing: ServiceMonitors authored elsewhere
-(notably `helm/buyerchat`'s ServiceMonitor in Day-4 Phase C) carry
+(notably `helm/buyerchat`'s ServiceMonitor in Phase C) carry
 `labels.release: kps` so the operator picks them up.
 
 ## Access
@@ -114,7 +114,7 @@ kubectl port-forward -n monitoring svc/kps-kube-prometheus-stack-prometheus 9090
 curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health}'
 ```
 
-## Day-7 cleanup
+## cleanup
 
 When ArgoCD takes over (Day 6+), this stack becomes an ArgoCD
 `Application` pointing at this same `infra/kube-prometheus-stack/`

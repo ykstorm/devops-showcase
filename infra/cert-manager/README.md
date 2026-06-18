@@ -30,7 +30,7 @@ kubectl apply -f infra/cert-manager/clusterissuer-selfsigned.yaml
   browsers / curl reject the chain by default. `curl -k` covers the
   smoke-test case.
 
-The single-line ClusterIssuer swap to ACME is captured in the Day-7
+The single-line ClusterIssuer swap to ACME is captured in the an earlier iteration
 `docs/tradeoffs.md` entry.
 
 ## How buyerchat consumes it

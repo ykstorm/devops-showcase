@@ -25,7 +25,7 @@
 # in-memory key. The resulting Secret is mounted by the ingress-nginx
 # controller and served on the TLS handshake.
 #
-# Day-7 trade-offs entry will document the one-line ClusterIssuer swap
+# trade-offs entry will document the one-line ClusterIssuer swap
 # that turns this into ACME for a real-domain v1.0 deployment.
 
 apiVersion: cert-manager.io/v1

@@ -65,7 +65,7 @@ longer decrypt — the controller will log
 
 For this showcase that's intentional and accepted:
 
-- Day-3's SealedSecret only protects stub values (`demo-not-real`,
+- an earlier iteration's SealedSecret only protects stub values (`demo-not-real`,
   `example.invalid` — see `manifests/buyerchat/10-secret-stub.yaml`).
   Re-sealing them after a cluster recreate is a 30-second `kubeseal`
   re-run, not a recovery operation.
@@ -82,10 +82,10 @@ For this showcase that's intentional and accepted:
   kubectl apply -f .secrets/sealed-secrets-key.yaml
   kubectl rollout restart deploy/sealed-secrets -n kube-system
   ```
-- Day-7 cleanup ticket logs this; it's not a Day-3 task because the
+- cleanup ticket logs this; it's not a task because the
   showcase has no real secrets to lose.
 
-## Day-7 cleanup
+## cleanup
 
 When ArgoCD takes over (Day 6+), this controller install becomes an
 Argo `Application` pointing at a kustomization that wraps the chart.

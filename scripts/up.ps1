@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-  Day-2 lifecycle: bring up a single-node kind cluster with Calico CNI,
+  lifecycle: bring up a single-node kind cluster with Calico CNI,
   pre-load the buyerchat image, and apply the buyerchat namespace +
   Deployment + Service + NetworkPolicies in dependency order.
 
@@ -169,7 +169,7 @@ Write-OK "Image side-loaded; ImagePullPolicy=IfNotPresent will not hit the regis
 # ---------------------------------------------------------------------
 # Apply buyerchat namespace
 # ---------------------------------------------------------------------
-# Day-3 note: the raw Deployment / Service / Secret / NetworkPolicies
+# note: the raw Deployment / Service / Secret / NetworkPolicies
 # under manifests/buyerchat/ are now owned by the Helm chart at
 # helm/buyerchat/. Only 00-namespace.yaml remains here, because the
 # chart doesn't manage the Namespace (PSS labels are an

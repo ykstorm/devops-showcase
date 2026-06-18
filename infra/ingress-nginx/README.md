@@ -55,7 +55,7 @@ chart enables `publishService` by default; we disable it in
 takes effect (and ingress objects' `.status.loadBalancer.ingress[]`
 gets a sensible value instead of being permanently empty).
 
-## Day-7 cleanup ticket
+## cleanup ticket
 
 When ArgoCD is wired up on Day 6, this controller becomes an Argo
 `Application` pointing at this same `infra/ingress-nginx/` directory

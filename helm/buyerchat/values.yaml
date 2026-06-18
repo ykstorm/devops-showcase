@@ -46,7 +46,7 @@ resources:
     memory: "512Mi"
 
 # Restricted-PSS-compliant security context. See
-# manifests/buyerchat/20-deployment.yaml for the original Day-2
+# manifests/buyerchat/20-deployment.yaml for the original an earlier iteration
 # rationale (image runs as UID 1001, drops all caps, read-only root,
 # emptyDir for the few writable paths Next.js needs).
 podSecurityContext:
@@ -115,10 +115,10 @@ serviceMonitor:
   releaseLabel: kps
 
 # Probes — preserved from manifests/buyerchat/20-deployment.yaml.
-# tcpSocket, NOT httpGet. Day-2 documented the why:
+# tcpSocket, NOT httpGet. documented the why:
 #
 #   /api/healthcheck returns 503 in degraded mode (no DB connection in
-#   the showcase cluster — see docs/P3-SCOPE.md §2.2 + findings.md
+#   the showcase cluster — see the design notes
 #   Q-12). Kubelet HTTP probes treat any non-2xx/3xx as failure
 #   regardless of probe type (startup/readiness/liveness), so HTTP
 #   probing /api/healthcheck would CrashLoopBackOff the pod on the

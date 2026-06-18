@@ -5,7 +5,7 @@
 # mentioned here are accepted as-is.
 
 # -----------------------------------------------------------------------
-# Disable alertmanager (showcase scope: skip alerting; Day-7 stretch)
+# Disable alertmanager (showcase scope: skip alerting; stretch)
 # -----------------------------------------------------------------------
 alertmanager:
   enabled: false
