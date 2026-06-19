@@ -1,0 +1,44 @@
+{{- if .Values.rollout.enabled }}
+# AnalysisTemplate for the demo canary. The Rollout's `analysis` step
+# (after the 25% weight) runs this against the operated Prometheus. The
+# query is a REAL HTTP success-rate ratio computed from the workload's
+# http_requests_total counter: the fraction of requests that returned a
+# 2xx status over a 2-minute window. If successCondition fails more than
+# failureLimit times, the Rollout aborts and rolls back to the previous
+# revision.
+#
+# The `service-name` arg is passed by the Rollout (spec.strategy.canary
+# steps[].analysis.args) and MUST match the `service` label the demo app
+# stamps on every sample (SERVICE_NAME env / .Values.serviceName).
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "demo.fullname" . }}-success-rate
+  labels:
+    {{- include "demo.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      initialDelay: {{ .Values.rollout.analysis.initialDelay }}
+      interval: {{ .Values.rollout.analysis.interval }}
+      successCondition: result[0] >= {{ .Values.rollout.analysis.successThreshold }}
+      failureLimit: {{ .Values.rollout.analysis.failureLimit }}
+      provider:
+        prometheus:
+          address: {{ .Values.rollout.analysis.prometheusAddress }}
+          query: |
+            sum(rate(
+              http_requests_total{
+                service="{{`{{args.service-name}}`}}",
+                code=~"2.."
+              }[2m]
+            ))
+            /
+            sum(rate(
+              http_requests_total{
+                service="{{`{{args.service-name}}`}}"
+              }[2m]
+            ))
+{{- end }}

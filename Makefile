@@ -1,69 +1,39 @@
-.PHONY: up down smoke lint rollout-status help
+.PHONY: up down smoke lint rollout-status demo-image help
 
 KIND_CLUSTER := stackup
-HELM_CHART := helm/buyerchat
+HELM_CHART := helm/demo
 NAMESPACE := app
+DEMO_IMAGE := stackup-demo:v1
+ROLLOUT := demo
 
 help:
 	@echo "stackup Makefile"
 	@echo ""
-	@echo "  make up             Full bring-up: create kind cluster + install all platform components + buyerchat"
+	@echo "  make up             Full bring-up: scripts/bootstrap.sh (ordered, each step waited)"
 	@echo "  make down           Tear down: delete kind cluster (clean)"
-	@echo "  make smoke          Run smoke tests (requires cluster up)"
+	@echo "  make demo-image     Build the demo workload image + side-load it into kind"
+	@echo "  make smoke          Run smoke tests (helm render + validate; no cluster needed)"
 	@echo "  make lint           Lint all YAML files + Helm charts"
-	@echo "  make rollout-status Watch the buyerchat Argo Rollout canary progress"
+	@echo "  make rollout-status Watch the demo Argo Rollout canary progress"
 	@echo ""
-	@echo "Prerequisites: docker, kind, helm >=3.15, kubectl, git"
+	@echo "Prerequisites: docker, kind, helm >=3.15, kubectl, git, bash"
 
+# `up` is a thin wrapper over scripts/bootstrap.sh. The script owns the
+# ordering + per-step `kubectl wait` gates (kind -> Calico -> namespace ->
+# sealed-secrets -> SealedSecrets -> ingress/cert-manager/prometheus ->
+# Argo Rollouts/ArgoCD -> demo workload -> app-of-apps). Keeping the
+# orchestration in one place (not split between this target and the
+# script) is why the target is a one-liner.
 up:
-	@echo "=== Creating kind cluster ==="
-	kind create cluster --name $(KIND_CLUSTER) --config kind/cluster.yaml
+	@bash scripts/bootstrap.sh
 
-	@echo "=== Installing Calico CNI ==="
-	kubectl apply -f kind/calico/
-
-	@echo "=== Waiting for CNI ==="
-	@kubectl wait --for=condition=Ready pods -n calico-system -l k8s-app=calico-node --timeout=120s || true
-
-	@echo "=== Installing platform Helm charts ==="
-	@for chart in infra/ingress-nginx infra/cert-manager infra/sealed-secrets infra/kube-prometheus-stack; do \
-		echo "  Installing $$chart..."; \
-		helm upgrade --install --create-namespace --namespace $$(basename $$chart) $$chart $$chart --timeout 120s --wait --debug 2>&1 | tail -3 || true; \
-	done
-
-	@echo "=== Installing Argo Rollouts + ArgoCD ==="
-	@# Wrapper charts (Chart.yaml dependency on the upstream chart) — pull
-	@# the pinned dependency, then install. argo-rollouts first so the
-	@# Rollout CRDs exist before buyerchat renders a Rollout; argocd last.
-	@for chart in infra/argo-rollouts infra/argocd; do \
-		echo "  Installing $$chart..."; \
-		helm dependency build $$chart >/dev/null 2>&1 || true; \
-		helm upgrade --install --create-namespace --namespace $$(basename $$chart) $$chart $$chart --timeout 300s --wait --debug 2>&1 | tail -3 || true; \
-	done
-
-	@echo "=== Installing buyerchat Helm chart ==="
-	helm upgrade --install buyerchat $(HELM_CHART) \
-		--namespace $(NAMESPACE) --create-namespace \
-		--values $(HELM_CHART)/values.dev.yaml \
-		--timeout 180s --wait
-
-	@echo "=== Registering the ArgoCD app-of-apps root ==="
-	@# From here on ArgoCD reconciles every component from git (automated
-	@# sync + prune + self-heal). The helm installs above bootstrap the
-	@# cluster on a clean machine; root-app.yaml is the GitOps takeover.
-	kubectl apply -f argocd/root-app.yaml
-
-	@echo ""
-	@echo "=== Cluster ready ==="
-	@kubectl get pods -A --no-headers | grep -v Running | grep -v Completed && echo "All pods running ✓" || true
-	@echo ""
-	@echo "Add to /etc/hosts:"
-	@echo "  127.0.0.1 buyerchat.local.stackup.dev"
-	@echo "  127.0.0.1 grafana.local.stackup.dev"
-	@echo "  127.0.0.1 argocd.local.stackup.dev"
-	@echo "  127.0.0.1 prometheus.local.stackup.dev"
-	@echo ""
-	@echo "Then: curl https://buyerchat.local.stackup.dev/api/healthcheck"
+# Build + side-load the demo image without a full bring-up. Handy when
+# iterating on the workload, or to stage a "bad" image for the rollback
+# demo: make demo-image DEMO_IMAGE=stackup-demo:v2 then rebuild with
+# --build-arg FAILURE_RATE=0.3 (see apps/demo/Dockerfile).
+demo-image:
+	docker build -t $(DEMO_IMAGE) apps/demo
+	kind load docker-image $(DEMO_IMAGE) --name $(KIND_CLUSTER)
 
 down:
 	@echo "=== Deleting kind cluster ==="
@@ -82,8 +52,10 @@ lint:
 
 	@echo ""
 	@echo "=== Helm lint ==="
-	@helm lint $(HELM_CHART) --quiet && echo "✓ helm lint passed" || echo "✗ helm lint failed"
-	@helm template buyerchat $(HELM_CHART) > /dev/null 2>&1 && echo "✓ helm template passed" || echo "✗ helm template failed"
+	@for chart in helm/demo helm/buyerchat; do \
+		helm lint $$chart --quiet && echo "✓ helm lint $$chart passed" || echo "✗ helm lint $$chart failed"; \
+		helm template $$(basename $$chart) $$chart > /dev/null 2>&1 && echo "✓ helm template $$chart passed" || echo "✗ helm template $$chart failed"; \
+	done
 
 rollout-status:
-	kubectl argo rollouts get rollout buyerchat -n $(NAMESPACE) --watch
+	kubectl argo rollouts get rollout $(ROLLOUT) -n $(NAMESPACE) --watch

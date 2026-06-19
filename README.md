@@ -1,6 +1,6 @@
 # Stackup
 
-**Kubernetes on your laptop. ArgoCD + Argo Rollouts + Prometheus + Grafana. `make up` in 10 minutes. Free.**
+**Kubernetes on your laptop. ArgoCD + Argo Rollouts + Prometheus + Grafana. `make up` in ~12–15 minutes. Free.**
 
 [![CI](https://github.com/ykstorm/stackup/actions/workflows/ci.yml/badge.svg)](https://github.com/ykstorm/stackup/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -21,14 +21,14 @@ The buyerchat workload deliberately runs degraded (no DB). That's intentional. T
 
 | Layer | Component | What it does |
 |---|---|---|
-| **Cluster** | kind on Docker | 3-node K8s in containers |
+| **Cluster** | kind on Docker | single-node K8s in containers |
 | **CNI** | Calico | NetworkPolicy enforcement |
 | **GitOps** | ArgoCD (app-of-apps) | One root app manages 6 children; automated sync + prune + self-heal |
 | **Progressive delivery** | Argo Rollouts | Canary 25→50→75→100%, analysis gate at 25% with auto-rollback |
 | **Ingress** | ingress-nginx | TLS termination, hostPort 80/443 |
 | **TLS** | cert-manager | Self-signed ClusterIssuer (swap to ACME in one line for prod) |
 | **Secrets** | Sealed Secrets | Encrypted secrets in git, decrypted in-cluster |
-| **Metrics** | kube-prometheus-stack | Prometheus + Alertmanager + Grafana, RED dashboards pre-imported |
+| **Metrics** | kube-prometheus-stack | Prometheus + Alertmanager + Grafana |
 | **Workload demo** | buyerchat Helm chart | Next.js app — demonstrates the cluster, not a production app |
 | **Hardening** | PSS `restricted` + NetworkPolicy `default-deny` | Zero-trust on workload namespaces |
 
@@ -41,7 +41,7 @@ The buyerchat workload deliberately runs degraded (no DB). That's intentional. T
 
 ---
 
-## 10-minute quickstart
+## Quickstart
 
 ```bash
 git clone https://github.com/ykstorm/stackup && cd stackup
