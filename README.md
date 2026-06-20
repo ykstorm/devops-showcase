@@ -43,6 +43,8 @@ The buyerchat workload deliberately runs degraded (no DB). That's intentional. T
 
 ## Quickstart
 
+**Prerequisites:** Docker, `kind`, `kubectl`, `helm`. Give Docker **at least 6 GB of memory** (Docker Desktop → Settings → Resources). The full stack — Calico, kube-prometheus-stack, ArgoCD, and Argo Rollouts on one node — will start to crash-loop its controllers below ~4 GB.
+
 ```bash
 git clone https://github.com/ykstorm/stackup && cd stackup
 make up
@@ -84,7 +86,7 @@ The current analysis query is a conservative liveness check (is the canary up an
 
 ```mermaid
 graph TD
-    Dev[Developer machine] -->|kind create cluster| Kind[kind cluster<br/>3 Docker nodes]
+    Dev[Developer machine] -->|kind create cluster| Kind[kind cluster<br/>single node]
     Kind --> CP[Control plane]
     Kind --> W1[Worker 1]
     Kind --> W2[Worker 2]
