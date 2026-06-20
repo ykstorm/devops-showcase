@@ -27,6 +27,7 @@ set -euo pipefail
 
 CLUSTER_NAME="stackup"
 CALICO_VERSION="v3.28.2"
+SEALED_SECRETS_VERSION="v0.27.1"
 NAMESPACE="app"
 DEMO_IMAGE="stackup-demo:v1"
 
@@ -79,15 +80,15 @@ kubectl apply -f manifests/app/00-namespace.yaml
 # --------------------------------------------------------------------- #
 # 5. sealed-secrets controller, then wait it Ready
 # --------------------------------------------------------------------- #
-step "installing sealed-secrets controller"
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets >/dev/null 2>&1 || true
-helm repo update sealed-secrets >/dev/null
-helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
-  --namespace kube-system --wait --timeout 180s
+step "installing sealed-secrets controller (${SEALED_SECRETS_VERSION} release manifest)"
+# Install from the upstream release manifest rather than a Helm repo — the
+# sealed-secrets Helm index (bitnami-labs.github.io/sealed-secrets) 404s, and
+# the controller is a single static manifest anyway.
+kubectl apply -f "https://github.com/bitnami-labs/sealed-secrets/releases/download/${SEALED_SECRETS_VERSION}/controller.yaml"
 
-step "waiting for sealed-secrets controller Ready"
-kubectl wait --for=condition=Ready pod \
-  -n kube-system -l app.kubernetes.io/name=sealed-secrets --timeout=120s
+step "waiting for sealed-secrets controller Available"
+kubectl wait --for=condition=Available deployment/sealed-secrets-controller \
+  -n kube-system --timeout=180s
 
 # --------------------------------------------------------------------- #
 # 6. SealedSecrets (namespace + controller now exist)
@@ -125,7 +126,7 @@ kubectl apply -f infra/cert-manager/clusterissuer-selfsigned.yaml
 step "installing kube-prometheus-stack"
 helm upgrade --install kps prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace \
-  -f infra/kube-prometheus-stack/values.yaml --wait --timeout 300s
+  -f infra/kube-prometheus-stack/values.yaml --wait --timeout 600s
 
 # --------------------------------------------------------------------- #
 # 8. GitOps control plane — Argo Rollouts (CRDs first), then ArgoCD
