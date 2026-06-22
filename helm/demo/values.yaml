@@ -1,0 +1,101 @@
+# Default values for the demo chart (the canary subject).
+# Production-shaped; values.dev.yaml overrides for the kind cluster.
+
+image:
+  repository: stackup-demo
+  # Built locally and side-loaded into kind (see apps/demo/Dockerfile and
+  # the README "Build the demo image into kind" section). Never pulled
+  # from a registry, so pullPolicy is IfNotPresent.
+  tag: v1
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# The value the demo app stamps onto the `service` label of every
+# http_requests_total sample (SERVICE_NAME env). The AnalysisTemplate
+# PromQL selects on service="<this>", so the two MUST agree.
+serviceName: demo
+
+# Fraction of /api/work requests the app fails (0..1). Baked into the
+# image at build time normally; settable here to demo a bad canary
+# (e.g. 0.3) without rebuilding.
+failureRate: "0"
+
+# Progressive delivery. When false (default) the chart renders a plain
+# Deployment; when true (values.dev.yaml) it renders an Argo Rollout with
+# a canary strategy + AnalysisTemplate and the Deployment is suppressed —
+# exactly one workload object exists either way.
+rollout:
+  enabled: false
+  analysis:
+    # kube-prometheus-stack exposes a stable, release-independent service
+    # for the operated Prometheus at this address.
+    prometheusAddress: http://prometheus-operated.monitoring.svc:9090
+    interval: 30s
+    initialDelay: 30s
+    # successCondition is `result[0] >= successThreshold`.
+    successThreshold: "0.95"
+    failureLimit: 3
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "250m"
+    memory: "128Mi"
+
+# Restricted-PSS-compliant security context (matches the `restricted`
+# namespace labels). Image runs as UID 1001, drops all caps, read-only
+# root filesystem.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+service:
+  type: ClusterIP
+  port: 3000
+
+# ServiceMonitor for kube-prometheus-stack to scrape /metrics. The
+# operator (release `kps`) sets serviceMonitorSelectorNilUsesHelmValues
+# =false so it adopts ServiceMonitors cluster-wide; the release label is
+# set anyway as defence-in-depth.
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  port: http
+  interval: 30s
+  scrapeTimeout: 10s
+  releaseLabel: kps
+
+# Probes — httpGet against /healthz, which always returns 200 (unlike the
+# degraded buyerchat app, this workload is healthy by design).
+probes:
+  startup:
+    failureThreshold: 30
+    periodSeconds: 2
+    timeoutSeconds: 2
+  liveness:
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3

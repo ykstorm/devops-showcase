@@ -23,7 +23,7 @@ kubectl apply -f argocd/root-app.yaml
 
 ## Access
 
-The server is reachable at https://argocd.local.stackup.dev (TLS
+The server is reachable at https://argocd.localtest.me (TLS
 terminated by cert-manager's selfsigned ClusterIssuer; `curl -k` for the
 self-signed chain). The initial admin password:
 

@@ -1,0 +1,24 @@
+apiVersion: v2
+name: demo
+description: |-
+  Self-contained Express + prom-client workload that emits a real
+  http_requests_total counter on /metrics. This is the Argo Rollouts
+  canary subject for stackup: the AnalysisTemplate computes a real
+  HTTP success-rate from this metric and gates the canary on it.
+
+  Renders exactly one workload object: a plain Deployment by default, or
+  an Argo Rollout (canary + AnalysisTemplate) when rollout.enabled=true
+  (set in values.dev.yaml for the kind cluster). Also ships a Service and
+  a ServiceMonitor so kube-prometheus-stack scrapes /metrics.
+type: application
+version: 0.1.0
+appVersion: "v1"
+home: https://github.com/ykstorm/stackup
+sources:
+  - https://github.com/ykstorm/stackup
+keywords:
+  - demo
+  - stackup
+  - canary
+maintainers:
+  - name: ykstorm

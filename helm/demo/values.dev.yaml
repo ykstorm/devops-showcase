@@ -1,0 +1,18 @@
+# Overrides for the local kind cluster.
+#
+# Renders an Argo Rollout (canary) instead of a plain Deployment so the
+# documented canary flow — `kubectl argo rollouts get rollout demo -n app`
+# — works end to end. Two replicas keep the canary weight steps visible.
+
+replicaCount: 2
+
+rollout:
+  enabled: true
+
+resources:
+  requests:
+    cpu: "25m"
+    memory: "48Mi"
+  limits:
+    cpu: "150m"
+    memory: "96Mi"

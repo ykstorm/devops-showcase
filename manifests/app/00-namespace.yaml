@@ -1,0 +1,20 @@
+# The `app` workload namespace.
+#
+# The demo canary workload and the buyerchat showcase both install here
+# (Makefile NAMESPACE=app, argocd/apps/*.yaml destination.namespace=app).
+# Pod Security Standards `restricted` is enforced at the namespace level —
+# an infrastructure concern, not a workload concern, so it lives here
+# rather than in either Helm chart. The SealedSecret for buyerchat-env
+# also unseals into this namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+  labels:
+    app.kubernetes.io/part-of: stackup
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest

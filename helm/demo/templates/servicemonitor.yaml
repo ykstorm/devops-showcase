@@ -1,0 +1,27 @@
+{{- if .Values.serviceMonitor.enabled -}}
+# ServiceMonitor wires the kube-prometheus-stack Prometheus operator
+# (release `kps` in the `monitoring` namespace) to scrape the /metrics
+# endpoint the demo app exposes. The operator has
+# serviceMonitorSelectorNilUsesHelmValues=false
+# (infra/kube-prometheus-stack/values.yaml) so it adopts ServiceMonitors
+# cluster-wide; the `release: kps` label is set anyway as defence-in-depth.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "demo.fullname" . }}
+  labels:
+    {{- include "demo.labels" . | nindent 4 }}
+    release: {{ .Values.serviceMonitor.releaseLabel }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "demo.selectorLabels" . | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: {{ .Values.serviceMonitor.port }}
+      path: {{ .Values.serviceMonitor.path }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}

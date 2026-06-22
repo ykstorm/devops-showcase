@@ -1,0 +1,20 @@
+{
+  "name": "stackup-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-contained Express + prom-client workload that emits http_requests_total — the Argo Rollouts canary subject for stackup.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check test/metrics.test.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "prom-client": "^15.1.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0"
+}

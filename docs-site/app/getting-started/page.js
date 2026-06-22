@@ -18,49 +18,44 @@ make up`}</code>
       </pre>
       <p>
         <code>make up</code> creates the kind cluster, installs the platform,
-        and deploys the buyerchat workload. The root ArgoCD Application is the
-        only thing applied directly; ArgoCD syncs everything else from the git
-        repo.
+        and deploys the <code>demo</code> workload (the canary subject). The
+        root ArgoCD Application is the only thing applied directly; ArgoCD syncs
+        everything else from the git repo.
       </p>
 
-      <h2>Map the hostnames</h2>
+      <h2>Hostnames</h2>
       <p>
-        Add these entries to your hosts file (<code>/etc/hosts</code>, or{' '}
-        <code>C:\Windows\System32\drivers\etc\hosts</code> on Windows):
+        The ingress hosts use <code>localtest.me</code>, which resolves to{' '}
+        <code>127.0.0.1</code> automatically — no hosts file editing needed.
       </p>
-      <pre>
-        <code>{`127.0.0.1 buyerchat.local.stackup.dev
-127.0.0.1 grafana.local.stackup.dev
-127.0.0.1 argocd.local.stackup.dev
-127.0.0.1 prometheus.local.stackup.dev`}</code>
-      </pre>
 
       <h2>Open the surfaces</h2>
       <ul>
         <li>
-          <strong>buyerchat.local.stackup.dev</strong> — the workload. It
-          returns 503 degraded because there is no database wired in. That
-          response is expected.
-        </li>
-        <li>
-          <strong>grafana.local.stackup.dev</strong> — RED metrics from
+          <strong>grafana.localtest.me</strong> — RED metrics from
           Prometheus. Logs and traces (Loki, Tempo) are on the roadmap, not
           installed yet.
         </li>
         <li>
-          <strong>argocd.local.stackup.dev</strong> — the GitOps tree of six
+          <strong>argocd.localtest.me</strong> — the GitOps tree of six
           child apps.
+        </li>
+        <li>
+          The <code>demo</code> workload has no ingress. Reach it with{' '}
+          <code>kubectl -n app port-forward svc/demo 3000:3000</code>, then{' '}
+          <code>curl localhost:3000/metrics</code> to see{' '}
+          <code>http_requests_total</code>.
         </li>
       </ul>
 
       <h2>Makefile targets</h2>
       <pre>
         <code>{`make help            # Show all targets
-make up              # Create cluster + install platform + buyerchat
+make up              # Create cluster + install platform + demo
 make down            # Tear down the kind cluster
 make smoke           # Run smoke tests (requires cluster up)
 make lint            # Lint all YAML + Helm charts
-make rollout-status  # Watch the buyerchat canary progress`}</code>
+make rollout-status  # Watch the demo canary progress`}</code>
       </pre>
 
       <h2>Known limits</h2>
@@ -79,8 +74,9 @@ make rollout-status  # Watch the buyerchat canary progress`}</code>
           NetworkPolicy and RBAC work.
         </li>
         <li>
-          The buyerchat workload runs degraded with no database, on purpose. The
-          cluster is the demo, not the app.
+          The <code>demo</code> workload is a stand-in for your real service —
+          it exists to drive the canary, not to be a product. The cluster is the
+          point, not the app.
         </li>
       </ul>
     </>
