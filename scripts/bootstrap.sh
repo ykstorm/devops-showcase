@@ -20,9 +20,14 @@
 #   9. build + side-load the demo image, install the demo chart, wait Ready
 #  10. register the ArgoCD app-of-apps root; wait Applications Synced
 #
-# LIVE VERIFY PENDING: this script has been static-reviewed (shellcheck +
-# step-ordering audit) but `make up` has NOT yet been run on a live
-# cluster as part of this change.
+# LIVE VERIFIED 2026-06-24 on a kind cluster (Docker Desktop): every step
+# below brought its component up, and the buyerchat/demo Argo Rollouts canary
+# completed end to end (25→50→75→100%) with its Prometheus success-rate
+# AnalysisRun passing 3/3 (1.0 ≥ 0.95). See docs/VERIFIED.md for the captured
+# run. NOTE: the `helm --wait` calls below are gated by `set -e`, so on a slow
+# host the first chart whose images pull slowly aborts the whole run — rerun
+# (`make down && make up`, images now cached) clears it. A `--wait` retry would
+# remove that sharp edge; tracked separately.
 set -euo pipefail
 
 CLUSTER_NAME="stackup"
