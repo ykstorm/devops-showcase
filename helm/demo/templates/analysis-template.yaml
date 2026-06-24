@@ -23,6 +23,9 @@ spec:
     - name: success-rate
       initialDelay: {{ .Values.rollout.analysis.initialDelay }}
       interval: {{ .Values.rollout.analysis.interval }}
+      # `count` bounds the inline step-analysis so the metric terminates;
+      # without it Argo Rollouts rejects the Rollout as InvalidSpec.
+      count: {{ .Values.rollout.analysis.count }}
       successCondition: result[0] >= {{ .Values.rollout.analysis.successThreshold }}
       failureLimit: {{ .Values.rollout.analysis.failureLimit }}
       provider:

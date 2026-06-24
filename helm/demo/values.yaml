@@ -32,6 +32,11 @@ rollout:
     # for the operated Prometheus at this address.
     prometheusAddress: http://prometheus-operated.monitoring.svc:9090
     interval: 30s
+    # Bounded step-analysis: run the query `count` times, then conclude.
+    # An inline canary-step metric MUST terminate — without `count` Argo
+    # Rollouts treats it as indefinite and rejects the whole Rollout spec
+    # (InvalidSpec → zero pods). count 3 × interval 30s = the ~90s window.
+    count: 3
     initialDelay: 30s
     # successCondition is `result[0] >= successThreshold`.
     successThreshold: "0.95"
