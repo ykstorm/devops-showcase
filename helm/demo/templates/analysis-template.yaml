@@ -36,12 +36,12 @@ spec:
               http_requests_total{
                 service="{{`{{args.service-name}}`}}",
                 code=~"2.."
-              }[2m]
+              }[{{ .Values.rollout.analysis.window }}]
             ))
             /
             sum(rate(
               http_requests_total{
                 service="{{`{{args.service-name}}`}}"
-              }[2m]
+              }[{{ .Values.rollout.analysis.window }}]
             ))
 {{- end }}

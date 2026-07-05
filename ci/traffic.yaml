@@ -1,0 +1,33 @@
+# Steady traffic for the canary e2e. Hammers the demo's /api/work with healthy
+# requests so http_requests_total has real 2xx data for the success-rate gate to
+# read. FAILURE_RATE=0 on the image → every request is 200 → ratio ~1.0 ≥ 0.95,
+# so the real analysis passes and the canary advances. (The negative case — a
+# FAILURE_RATE>0 image driving the ratio below 0.95 and forcing a rollback — is
+# the counterpart, driven by the workflow.)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic
+  namespace: app
+  labels: { app: traffic }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: traffic }
+  template:
+    metadata:
+      labels: { app: traffic }
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                curl -s -o /dev/null http://demo.app.svc.cluster.local:3000/api/work || true
+                sleep 0.05
+              done
+          resources:
+            requests: { cpu: "10m", memory: "16Mi" }
+            limits: { cpu: "100m", memory: "32Mi" }

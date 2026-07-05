@@ -27,10 +27,19 @@ failureRate: "0"
 # exactly one workload object exists either way.
 rollout:
   enabled: false
+  # Canary pause between weight steps. Production keeps 30s of soak per step;
+  # the CI e2e overlay (values.ci.yaml) shortens it so the whole rollout fits
+  # a runner budget. The Rollout template reads this — prod behaviour unchanged.
+  canary:
+    pauseDuration: 30s
   analysis:
     # kube-prometheus-stack exposes a stable, release-independent service
     # for the operated Prometheus at this address.
     prometheusAddress: http://prometheus-operated.monitoring.svc:9090
+    # rate() window for the success-rate PromQL. 2m in production; the CI
+    # overlay shortens it to match a compressed traffic window. Templated so
+    # prod and CI share one AnalysisTemplate.
+    window: 2m
     interval: 30s
     # Bounded step-analysis: run the query `count` times, then conclude.
     # An inline canary-step metric MUST terminate — without `count` Argo
