@@ -91,9 +91,11 @@ jobs:
       - name: Assert canary completed via the analysis gate
         run: |
           set -e
-          PHASE=$(kubectl argo rollouts get rollout demo -n app -o jsonpath='{.status.phase}')
+          # jsonpath comes from kubectl against the Rollout CRD; the argo
+          # rollouts plugin's `get` is a pretty-view only and rejects -o.
+          PHASE=$(kubectl get rollout demo -n app -o jsonpath='{.status.phase}')
           echo "Rollout phase: $PHASE"
-          kubectl argo rollouts get rollout demo -n app | tee /tmp/rollout.txt
+          kubectl argo rollouts get rollout demo -n app --no-color | tee /tmp/rollout.txt
           echo "--- AnalysisRuns ---"
           kubectl -n app get analysisrun -o custom-columns=NAME:.metadata.name,PHASE:.status.phase | tee /tmp/analysis.txt
           # Gate: the rollout must be Healthy AND at least one AnalysisRun must
