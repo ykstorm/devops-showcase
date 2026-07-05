@@ -77,6 +77,18 @@ The canary shifts 25% of traffic to the new version, pauses, then runs an analys
 
 The `demo` image exports `http_requests_total` directly (Express + prom-client), so the gate runs against real request data. Set `failureRate` on the chart to push a deliberately bad canary and watch the rollback fire.
 
+### Verified in CI
+
+This isn't a diagram-only claim. [`.github/workflows/canary-e2e.yml`](.github/workflows/canary-e2e.yml) stands up a real kind cluster, installs Argo Rollouts and a live Prometheus, drives steady 2xx traffic through the demo workload, then ships a new image and lets the canary run. The rollout advances **only** because the real `AnalysisTemplate` success-rate query clears the ≥0.95 gate — the same PromQL shown above, on real scraped data. Last run:
+
+```
+Status:   ✔ Healthy       Step: 8/8   SetWeight: 100
+demo   Rollout   ✔ Healthy
+└─ AnalysisRun demo-…-2-2   ✔ Successful
+```
+
+The `rate()` window (2m) and step pauses (30s) are the production values; the CI overlay ([`helm/demo/values.ci.yaml`](helm/demo/values.ci.yaml)) compresses only the *timing* so the genuine gate fits a runner — nothing about the analysis is mocked. Reproduce locally with `make up` and a `helm/demo/values.yaml` image bump.
+
 ---
 
 ## Architecture
